@@ -1,0 +1,204 @@
+{% extends "tienda/base.html" %}
+{% load cop_filters %}
+{% block titulo %}Finalizar compra — AUTOPART{% endblock %}
+
+{% block extra_css %}
+<style>
+.ck-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 60px; }
+.ck-header { margin-bottom: 24px; }
+.ck-header h1 { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.ck-header p { color: #888; font-size: 0.9rem; margin: 0; }
+
+.ck-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .ck-layout { grid-template-columns: 1fr; } }
+
+.ck-card { background: #fff; border: 1px solid var(--mp-gris-borde); border-radius: 14px; padding: 24px 26px; margin-bottom: 20px; }
+.ck-card h2 { font-size: 0.98rem; font-weight: 700; color: #111; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.ck-card h2 i { color: var(--mp-rojo); }
+
+.ck-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 480px) { .ck-form-row { grid-template-columns: 1fr; } }
+
+.ck-form-label { font-size: 0.85rem; font-weight: 600; color: #444; margin-bottom: 6px; display: block; }
+.ck-form-control {
+  width: 100%;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 9px;
+  padding: 11px 14px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color .2s;
+  font-family: inherit;
+  background: #fff;
+}
+.ck-form-control:focus { border-color: var(--mp-rojo); box-shadow: 0 0 0 3px rgba(232,0,29,.08); }
+.ck-form-control:disabled { background: #f5f5f5; color: #aaa; cursor: not-allowed; }
+textarea.ck-form-control { resize: vertical; min-height: 80px; }
+.ck-form-group { margin-bottom: 16px; }
+.ck-form-hint { font-size: 0.78rem; color: #999; margin-top: 5px; }
+
+/* ══ RESUMEN ══ */
+.ck-summary { background: #fff; border: 1px solid var(--mp-gris-borde); border-radius: 14px; padding: 24px; position: sticky; top: 90px; }
+.ck-summary h2 { font-size: 0.95rem; font-weight: 700; color: #111; margin-bottom: 16px; }
+.ck-summary-item { display: flex; justify-content: space-between; gap: 10px; font-size: 0.83rem; color: #555; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+.ck-summary-item .ck-si-name { color: #333; }
+.ck-summary-item .ck-si-qty { color: #999; }
+.ck-summary-row { display: flex; justify-content: space-between; font-size: 0.88rem; color: #555; margin-top: 14px; }
+.ck-summary-row.ck-total { font-size: 1.1rem; font-weight: 800; color: #111; border-top: 1px solid var(--mp-gris-borde); padding-top: 14px; margin-top: 12px; }
+.ck-summary-row.ck-total span:last-child { color: var(--mp-rojo); }
+
+.btn-ck-confirm {
+  width: 100%;
+  background: var(--mp-rojo);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  margin-top: 18px;
+  transition: background .2s;
+}
+.btn-ck-confirm:hover { background: var(--mp-rojo-hover); color: #fff; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="ck-wrap">
+  <div class="ck-header">
+    <h1><i class="fas fa-truck" style="color:var(--mp-rojo)"></i> Finalizar compra</h1>
+    <p>Completa tus datos de envío para procesar tu pedido.</p>
+  </div>
+
+  <form method="post" id="checkoutForm">
+    {% csrf_token %}
+    <div class="ck-layout">
+      <!-- ══ COLUMNA IZQUIERDA: FORMULARIO ══ -->
+      <div>
+        <div class="ck-card">
+          <h2><i class="fas fa-map-marker-alt"></i> Datos de envío</h2>
+
+          <div class="ck-form-row">
+            <div class="ck-form-group">
+              <label class="ck-form-label">Documento de identidad</label>
+              <input type="text" name="documento" class="ck-form-control" placeholder="Ej: 1012345678" value="{{ perfil.documento|default:'' }}" required>
+            </div>
+            <div class="ck-form-group">
+              <label class="ck-form-label">Teléfono de contacto</label>
+              <input type="text" name="telefono" class="ck-form-control" placeholder="Ej: 3001234567" value="{{ perfil.telefono|default:'' }}" required>
+            </div>
+          </div>
+
+          <div class="ck-form-row">
+            <div class="ck-form-group">
+              <label class="ck-form-label">Departamento</label>
+              <select name="departamento" id="ckDepartamento" class="ck-form-control" required onchange="ckCargarCiudades()">
+                <option value="">Selecciona un departamento</option>
+                {% for dep in departamentos %}
+                <option value="{{ dep }}" {% if perfil.departamento == dep %}selected{% endif %}>{{ dep }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="ck-form-group">
+              <label class="ck-form-label">Ciudad</label>
+              <select name="ciudad" id="ckCiudad" class="ck-form-control" required disabled>
+                <option value="">Primero selecciona un departamento</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ck-form-group">
+            <label class="ck-form-label">Dirección</label>
+            <input type="text" name="direccion" class="ck-form-control" placeholder="Calle, número, barrio..." value="{{ perfil.direccion|default:'' }}" required>
+            <div class="ck-form-hint">Esta dirección se guardará en tu perfil para tu próxima compra.</div>
+          </div>
+
+          <div class="ck-form-group" style="margin-bottom:0">
+            <label class="ck-form-label">Notas adicionales (opcional)</label>
+            <input type="text" name="notas" class="ck-form-control" placeholder="Ej: dejar con el portero, llamar antes de llegar...">
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ COLUMNA DERECHA: RESUMEN ══ -->
+      <div class="ck-summary">
+        <h2>Resumen del pedido</h2>
+        {% for item in items %}
+        <div class="ck-summary-item">
+          <span class="ck-si-name">{{ item.producto.nombre|truncatechars:28 }} <span class="ck-si-qty">×{{ item.cantidad }}</span></span>
+          <span>${{ item.subtotal|cop }}</span>
+        </div>
+        {% endfor %}
+
+        <div class="ck-summary-row">
+          <span>Subtotal</span>
+          <span>${{ carrito.total|cop }}</span>
+        </div>
+        <div class="ck-summary-row" style="color:#888;font-size:0.9rem;">
+          <span>IVA (19%) incluido</span>
+          <span>${{ carrito.valor_iva|cop }}</span>
+        </div>
+        <div class="ck-summary-row">
+          <span>Envío</span>
+          <span>Por confirmar</span>
+        </div>
+        <div class="ck-summary-row ck-total">
+          <span>Total</span>
+          <span>${{ carrito.total|cop }}</span>
+        </div>
+
+        <button type="submit" class="btn-ck-confirm"><i class="fas fa-check-circle"></i> Confirmar pedido</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ckDepartamentosCiudades = {{ departamentos_ciudades_json|safe }};
+const ckCiudadGuardada = "{{ perfil.ciudad|default:'' }}";
+
+function ckCargarCiudades() {
+  const depSelect = document.getElementById('ckDepartamento');
+  const ciuSelect = document.getElementById('ckCiudad');
+  const depElegido = depSelect.value;
+
+  ciuSelect.innerHTML = '';
+
+  if (!depElegido) {
+    ciuSelect.disabled = true;
+    ciuSelect.innerHTML = '<option value="">Primero selecciona un departamento</option>';
+    return;
+  }
+
+  ciuSelect.disabled = false;
+  const ciudades = ckDepartamentosCiudades[depElegido] || [];
+
+  const optionDefault = document.createElement('option');
+  optionDefault.value = '';
+  optionDefault.textContent = 'Selecciona una ciudad';
+  ciuSelect.appendChild(optionDefault);
+
+  ciudades.forEach(function (ciudad) {
+    const opt = document.createElement('option');
+    opt.value = ciudad;
+    opt.textContent = ciudad;
+    if (ciudad === ckCiudadGuardada) opt.selected = true;
+    ciuSelect.appendChild(opt);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Si ya había un departamento guardado en el perfil, precarga sus ciudades
+  if (document.getElementById('ckDepartamento').value) {
+    ckCargarCiudades();
+  }
+});
+</script>
+{% endblock %}

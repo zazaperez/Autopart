@@ -1,0 +1,197 @@
+{% extends "admin/base_admin.html" %}
+{% load cop_filters %}
+{% block titulo %}Ventas por periodo — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Reporte de Ventas{% endblock %}
+{% block nav_reportes %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:1rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .filter-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1rem 1.25rem; margin-bottom:1.25rem; display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; }
+  .filter-card label { font-size:.74rem; font-weight:700; color:#9aa3b2; text-transform:uppercase; letter-spacing:.04em; display:block; margin-bottom:.3rem; }
+  .filter-card input { border-radius:8px; border:1px solid #e0e0e0; font-size:.86rem; padding:.5rem .85rem; }
+  .filter-card input:focus { outline:none; border-color:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.1); }
+  .chip-rango { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip-rango a { font-size:.78rem; font-weight:600; color:#16a34a; background:#dcfce7; border-radius:8px; padding:.45rem .8rem; text-decoration:none; }
+  .chip-rango a:hover { filter:brightness(.95); }
+
+  .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  @media(max-width:992px){ .stat-row{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:576px){ .stat-row{ grid-template-columns:1fr; } }
+  .stat { background:#fff; border-radius:14px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .stat .lbl { font-size:.74rem; text-transform:uppercase; letter-spacing:.04em; color:#9aa3b2; font-weight:700; margin-bottom:4px; }
+  .stat .val { font-size:1.45rem; font-weight:800; color:#1a1a2e; }
+  .stat .sub { font-size:.78rem; margin-top:3px; }
+  .sub.pos { color:#16a34a; } .sub.neg { color:#dc2626; } .sub.neutral { color:#9aa3b2; }
+
+  .panel { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1.25rem; margin-bottom:1.25rem; }
+  .panel h6 { font-weight:700; font-size:.92rem; margin-bottom:1rem; }
+
+  .iva-box { background:#f8f9fb; border-radius:12px; padding:1rem 1.2rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+  .iva-box .item { min-width:150px; }
+  .iva-box .item .lbl { font-size:.75rem; color:#9aa3b2; text-transform:uppercase; font-weight:700; }
+  .iva-box .item .val { font-size:1.1rem; font-weight:700; color:#1a1a2e; }
+  .iva-box .item.iva .val { color:#c0392b; }
+
+  .metodo-row { display:flex; justify-content:space-between; align-items:center; padding:.6rem 0; border-top:1px solid #f0f2f5; font-size:.86rem; }
+  .metodo-row:first-child { border-top:none; }
+
+  .ventas-table { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; }
+  .ventas-table table { width:100%; border-collapse:collapse; }
+  .ventas-table th { background:#f8f9fb; font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:#9aa3b2; padding:.85rem 1.1rem; text-align:left; font-weight:700; }
+  .ventas-table td { padding:.85rem 1.1rem; border-top:1px solid #f0f2f5; font-size:.87rem; vertical-align:middle; }
+  .ventas-table tr:hover td { background:#fafbfc; }
+  .estado-badge { font-size:.72rem; font-weight:700; padding:4px 10px; border-radius:8px; background:#dcfce7; color:#16a34a; text-transform:capitalize; }
+  .empty-state { text-align:center; padding:3rem 1rem; color:#9aa3b2; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> › <a href="{% url 'admin_reportes' %}">Reportes</a> › Ventas por periodo
+</div>
+
+<h5 class="fw-bold mb-3">Ventas por periodo</h5>
+
+<form method="get" class="filter-card">
+  <div>
+    <label>Desde</label>
+    <input type="date" name="desde" value="{{ desde }}">
+  </div>
+  <div>
+    <label>Hasta</label>
+    <input type="date" name="hasta" value="{{ hasta }}">
+  </div>
+  <button type="submit" class="btn btn-mp px-4"><i class="fas fa-filter me-1"></i>Filtrar</button>
+  <div class="chip-rango ms-auto">
+    <a href="?desde=&hasta=">Mes actual</a>
+  </div>
+</form>
+
+<div class="stat-row">
+  <div class="stat">
+    <div class="lbl">Total vendido</div>
+    <div class="val">${{ total_ventas|cop }}</div>
+    {% if variacion_pct is not None %}
+      {% if variacion_pct >= 0 %}
+        <div class="sub pos"><i class="fas fa-arrow-up"></i> {{ variacion_pct }}% vs periodo anterior</div>
+      {% else %}
+        <div class="sub neg"><i class="fas fa-arrow-down"></i> {{ variacion_pct }}% vs periodo anterior</div>
+      {% endif %}
+    {% else %}
+      <div class="sub neutral">Sin datos del periodo anterior</div>
+    {% endif %}
+  </div>
+  <div class="stat">
+    <div class="lbl">Pedidos</div>
+    <div class="val">{{ num_pedidos }}</div>
+    <div class="sub neutral">en el periodo seleccionado</div>
+  </div>
+  <div class="stat">
+    <div class="lbl">Ticket promedio</div>
+    <div class="val">${{ ticket_promedio|cop }}</div>
+    <div class="sub neutral">por pedido</div>
+  </div>
+  <div class="stat">
+    <div class="lbl">IVA a declarar</div>
+    <div class="val">${{ iva_total|cop }}</div>
+    <div class="sub neutral">19% incluido en ventas</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h6><i class="fas fa-chart-line me-1"></i> Ventas por día</h6>
+  <canvas id="chartVentasDia" height="80"></canvas>
+</div>
+
+<div class="row g-3 mb-1">
+  <div class="col-lg-6">
+    <div class="panel h-100">
+      <h6><i class="fas fa-file-invoice-dollar me-1"></i> Desglose de IVA (Colombia, 19%)</h6>
+      <div class="iva-box">
+        <div class="item"><div class="lbl">Subtotal sin IVA</div><div class="val">${{ subtotal_sin_iva|cop }}</div></div>
+        <div class="item iva"><div class="lbl">IVA (19%)</div><div class="val">${{ iva_total|cop }}</div></div>
+        <div class="item"><div class="lbl">Total con IVA</div><div class="val">${{ total_ventas|cop }}</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="panel h-100">
+      <h6><i class="fas fa-credit-card me-1"></i> Ventas por método de pago</h6>
+      {% if por_metodo %}
+        {% for m in por_metodo %}
+        <div class="metodo-row">
+          <span>{{ m.metodo }} <span class="text-muted">({{ m.num }})</span></span>
+          <strong>${{ m.total|cop }}</strong>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted mb-0" style="font-size:.85rem;">No hay pagos aprobados en este periodo.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="ventas-table mt-3">
+  {% if pedidos_detalle %}
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Pedido</th>
+        <th>Cliente</th>
+        <th>Estado</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pedidos_detalle %}
+      <tr>
+        <td>{{ p.fecha_pedido|date:"d/m/Y H:i" }}</td>
+        <td>#{{ p.pk }}</td>
+        <td>{{ p.usuario.get_full_name|default:p.usuario.username }}</td>
+        <td><span class="estado-badge">{{ p.get_estado_display }}</span></td>
+        <td><strong>${{ p.total|cop }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-receipt fa-2x mb-2"></i>
+    <p class="mb-0">No hay ventas registradas en este periodo.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx = document.getElementById('chartVentasDia');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: {{ dias_labels|safe }},
+      datasets: [{
+        label: 'Ventas',
+        data: {{ dias_totales|safe }},
+        borderColor: '#16a34a',
+        backgroundColor: 'rgba(22,163,74,.08)',
+        fill: true,
+        tension: .3,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+</script>
+{% endblock %}

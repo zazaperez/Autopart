@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Panel Admin — MOTOPART{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --mp-rojo: #c0392b;
+      --mp-oscuro: #1a1a2e;
+      --mp-sidebar: #16213e;
+      --mp-sidebar-hover: #0f3460;
+      --mp-gris: #f4f6f8;
+    }
+    body { background: var(--mp-gris); font-family: 'Segoe UI', sans-serif; margin: 0; }
+
+    #sidebar {
+      width: 250px; min-height: 100vh; background: var(--mp-sidebar);
+      position: fixed; top: 0; left: 0;
+      display: flex; flex-direction: column; z-index: 1000; transition: width .25s;
+      overflow-y: auto;
+    }
+    #sidebar .sidebar-brand {
+      padding: 1.25rem 1.5rem; background: var(--mp-oscuro); color: #fff;
+      font-weight: 700; font-size: 1.1rem; text-decoration: none;
+      display: flex; align-items: center; gap: .6rem;
+      border-bottom: 2px solid var(--mp-rojo); flex-shrink: 0;
+    }
+    #sidebar .sidebar-brand span { color: var(--mp-rojo); }
+    #sidebar .nav-label {
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
+      color: #6c7a9c; padding: .9rem 1.5rem .3rem;
+    }
+    #sidebar .nav-link {
+      color: #a8b2d8; padding: .6rem 1.5rem;
+      display: flex; align-items: center; gap: .75rem; font-size: .88rem;
+      transition: background .2s, color .2s;
+      border-left: 3px solid transparent; text-decoration: none;
+    }
+    #sidebar .nav-link:hover, #sidebar .nav-link.active {
+      background: var(--mp-sidebar-hover); color: #fff; border-left-color: var(--mp-rojo);
+    }
+    #sidebar .nav-link i { width: 18px; text-align: center; }
+    #sidebar .sidebar-footer {
+      margin-top: auto; padding: 1rem 1.5rem;
+      border-top: 1px solid #1e2d50; font-size: .8rem; color: #6c7a9c; flex-shrink: 0;
+    }
+
+    #topbar {
+      margin-left: 250px; background: #fff; padding: .75rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08); position: sticky; top: 0; z-index: 900;
+    }
+    #topbar .topbar-title { font-weight: 600; font-size: 1rem; color: var(--mp-oscuro); }
+    #topbar .topbar-user { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: #555; }
+
+    #main-content {
+      margin-left: 250px; padding: 1.25rem 1.5rem;
+      min-height: calc(100vh - 57px);
+      max-width: calc(100vw - 250px);
+      overflow-x: hidden; box-sizing: border-box;
+    }
+
+    .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,.07); border-radius: 12px; }
+    .card-header {
+      background: #fff; border-bottom: 1px solid #eee;
+      border-radius: 12px 12px 0 0 !important; font-weight: 600; padding: 1rem 1.25rem;
+    }
+    .btn-mp { background: var(--mp-rojo); color: #fff; border: none; }
+    .btn-mp:hover { background: #a93226; color: #fff; }
+    .table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: #888; border-top: none; }
+    .table td { vertical-align: middle; font-size: .88rem; }
+
+    .badge-pendiente  { background: #f39c12 !important; }
+    .badge-confirmado { background: #2980b9 !important; }
+    .badge-preparando { background: #8e44ad !important; }
+    .badge-enviado    { background: #16a085 !important; }
+    .badge-entregado  { background: #27ae60 !important; }
+    .badge-cancelado  { background: #c0392b !important; }
+
+    @media (max-width: 768px) {
+      #sidebar { width: 0; overflow: hidden; }
+      #sidebar.open { width: 250px; overflow-y: auto; }
+      #topbar, #main-content { margin-left: 0; max-width: 100vw; }
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<nav id="sidebar">
+  <a class="sidebar-brand" href="{% url 'admin_dashboard' %}">
+    <i class="fas fa-car-side"></i> MOTO<span>PART</span>
+  </a>
+
+  <span class="nav-label">Principal</span>
+  <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'admin_dashboard' %}">
+    <i class="fas fa-chart-pie"></i> Dashboard
+  </a>
+
+  <span class="nav-label">Catálogo</span>
+  <a class="nav-link {% block nav_productos %}{% endblock %}" href="{% url 'admin_productos' %}">
+    <i class="fas fa-boxes"></i> Productos
+  </a>
+  <a class="nav-link {% block nav_categorias %}{% endblock %}" href="{% url 'admin_categorias' %}">
+    <i class="fas fa-tags"></i> Categorías
+  </a>
+
+  <span class="nav-label">Ventas</span>
+  <a class="nav-link {% block nav_pedidos %}{% endblock %}" href="{% url 'admin_pedidos' %}">
+    <i class="fas fa-receipt"></i> Pedidos
+  </a>
+
+  <span class="nav-label">Almacén</span>
+  <a class="nav-link {% block nav_inventario %}{% endblock %}" href="{% url 'admin_inventario' %}">
+    <i class="fas fa-warehouse"></i> Inventario
+  </a>
+  <a class="nav-link {% block nav_proveedores %}{% endblock %}" href="{% url 'admin_proveedores' %}">
+    <i class="fas fa-truck"></i> Proveedores
+  </a>
+
+  <span class="nav-label">Usuarios</span>
+  <a class="nav-link {% block nav_usuarios %}{% endblock %}" href="{% url 'admin_usuarios' %}">
+    <i class="fas fa-users"></i> Clientes
+  </a>
+
+  <span class="nav-label">Reportes</span>
+  <a class="nav-link {% block nav_reportes %}{% endblock %}" href="{% url 'admin_reportes' %}">
+    <i class="fas fa-chart-bar"></i> Reportes
+  </a>
+
+  <div class="sidebar-footer">
+    <div><i class="fas fa-user-shield me-2"></i>{{ user.get_full_name|default:user.username }}</div>
+    <div class="mt-1"><i class="fas fa-circle text-success me-1" style="font-size:.5rem"></i>Administrador</div>
+  </div>
+</nav>
+
+<div id="topbar">
+  <div class="d-flex align-items-center gap-3">
+    <button class="btn btn-sm btn-light d-md-none" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+    <span class="topbar-title">{% block topbar_titulo %}Panel de administración{% endblock %}</span>
+  </div>
+  <div class="topbar-user">
+    <a href="{% url 'catalogo' %}" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
+      <i class="fas fa-store me-1"></i>Ver tienda
+    </a>
+    <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger">
+      <i class="fas fa-sign-out-alt me-1"></i>Salir
+    </a>
+  </div>
+</div>
+
+{% if messages %}
+<div style="margin-left:250px;padding:.75rem 1.5rem 0;max-width:calc(100vw - 250px);">
+  {% for m in messages %}
+  <div class="alert alert-{{ m.tags|default:'info' }} alert-dismissible fade show" role="alert">
+    {{ m }} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div id="main-content">
+  {% block contenido %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

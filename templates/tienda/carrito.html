@@ -1,0 +1,272 @@
+{% extends "tienda/base.html" %}
+{% load cop_filters %}
+{% block titulo %}Mi carrito — AUTOPART{% endblock %}
+
+{% block extra_css %}
+<style>
+.ct-wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px 60px; }
+.ct-header { margin-bottom: 24px; }
+.ct-header h1 { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.ct-header p { color: #888; font-size: 0.9rem; margin: 0; }
+
+.ct-layout { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .ct-layout { grid-template-columns: 1fr; } }
+
+/* ══ LISTA DE ITEMS ══ */
+.ct-items-card { background: #fff; border: 1px solid var(--mp-gris-borde); border-radius: 14px; overflow: hidden; }
+.ct-items-header { padding: 18px 22px; border-bottom: 1px solid var(--mp-gris-borde); }
+.ct-items-header h2 { font-size: 0.95rem; font-weight: 700; color: #111; margin: 0; }
+.ct-vaciar-btn-full {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px;
+  transition: color .2s;
+}
+.ct-vaciar-btn-full:hover { color: var(--mp-rojo); }
+
+.ct-item-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ct-item-row:last-child { border-bottom: none; }
+@media (max-width: 640px) {
+  .ct-item-row { grid-template-columns: 60px 1fr; grid-template-areas: "img info" "img qty" "img price"; row-gap: 8px; }
+  .ct-item-qty { grid-area: qty; }
+  .ct-item-price { grid-area: price; }
+  .ct-item-remove { display: none; }
+}
+
+.ct-item-img { width: 80px; height: 80px; background: #fafafa; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.ct-item-img img { max-width: 90%; max-height: 90%; object-fit: contain; }
+.ct-item-img i { color: #ccc; font-size: 1.4rem; }
+
+.ct-item-info .ct-item-cat { font-size: 0.7rem; color: #999; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; margin-bottom: 3px; }
+.ct-item-info .ct-item-name { font-size: 0.92rem; font-weight: 700; color: #222; margin-bottom: 4px; }
+.ct-item-info .ct-item-unit { font-size: 0.8rem; color: #999; }
+.ct-item-info .ct-item-stock-warn { font-size: 0.75rem; color: #d97706; margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+
+.ct-qty-input-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ct-qty-display {
+  width: 36px;
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #222;
+}
+.ct-qty-input-group button {
+  background: #fafafa;
+  border: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #555;
+  font-size: 0.78rem;
+  transition: background .2s, color .2s;
+}
+.ct-qty-input-group button:first-child { border-right: 1px solid var(--mp-gris-borde); }
+.ct-qty-input-group button:last-child { border-left: 1px solid var(--mp-gris-borde); }
+.ct-qty-input-group button:hover { background: #f0f0f0; color: var(--mp-rojo); }
+.ct-qty-input-group button:disabled { opacity: .4; cursor: not-allowed; }
+.ct-qty-input-group button:disabled:hover { background: #fafafa; color: #555; }
+
+.ct-item-price { text-align: right; font-size: 1rem; font-weight: 800; color: var(--mp-rojo); white-space: nowrap; }
+
+.ct-item-remove {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 6px;
+  transition: color .2s;
+}
+.ct-item-remove:hover { color: var(--mp-rojo); }
+
+/* ══ RESUMEN ══ */
+.ct-summary {
+  background: #fff;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 14px;
+  padding: 24px;
+  position: sticky;
+  top: 90px;
+}
+.ct-summary h2 { font-size: 0.98rem; font-weight: 700; color: #111; margin-bottom: 18px; }
+.ct-summary-row { display: flex; justify-content: space-between; font-size: 0.88rem; color: #555; margin-bottom: 12px; }
+.ct-summary-row.ct-total { font-size: 1.1rem; font-weight: 800; color: #111; border-top: 1px solid var(--mp-gris-borde); padding-top: 14px; margin-top: 6px; }
+.ct-summary-row.ct-total span:last-child { color: var(--mp-rojo); }
+
+.btn-ct-checkout {
+  width: 100%;
+  background: var(--mp-rojo);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-decoration: none;
+  margin-top: 16px;
+  transition: background .2s;
+}
+.btn-ct-checkout:hover { background: var(--mp-rojo-hover); color: #fff; }
+.btn-ct-checkout:disabled, .btn-ct-checkout.disabled { background: #ddd; cursor: not-allowed; pointer-events: none; }
+
+.ct-seguir-comprando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: 1px solid var(--mp-gris-borde);
+  color: #555;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 10px;
+  transition: border-color .2s, color .2s;
+}
+.ct-seguir-comprando:hover { border-color: var(--mp-rojo); color: var(--mp-rojo); }
+
+/* ══ VACÍO ══ */
+.ct-empty { background: #fff; border: 1px solid var(--mp-gris-borde); border-radius: 14px; text-align: center; padding: 60px 24px; }
+.ct-empty-icon { width: 90px; height: 90px; background: #f5f5f5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #ccc; font-size: 2.2rem; }
+.ct-empty h2 { font-size: 1.15rem; font-weight: 700; color: #222; margin-bottom: 6px; }
+.ct-empty p { color: #999; font-size: 0.9rem; margin-bottom: 22px; }
+.ct-empty .btn-ct-checkout { max-width: 260px; margin: 0 auto; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="ct-wrap">
+  <div class="ct-header">
+    <h1><i class="fas fa-shopping-cart" style="color:var(--mp-rojo)"></i> Mi carrito</h1>
+    <p>{{ items|length }} producto{{ items|length|pluralize }} en tu carrito.</p>
+  </div>
+
+  {% if items %}
+  <div class="ct-layout">
+    <!-- ══ ITEMS ══ -->
+    <div class="ct-items-card">
+      <div class="ct-items-header">
+        <h2>Productos</h2>
+      </div>
+
+      {% for item in items %}
+      <div class="ct-item-row">
+        <div class="ct-item-img">
+          {% if item.producto.imagen %}
+            <img src="{{ item.producto.imagen.url }}" alt="{{ item.producto.nombre }}">
+          {% else %}
+            <i class="fas fa-cog"></i>
+          {% endif %}
+        </div>
+
+        <div class="ct-item-info">
+          <div class="ct-item-cat">
+            {% if item.producto.categoria %}{{ item.producto.categoria }}{% endif %}{% if item.producto.marca %} · {{ item.producto.marca }}{% endif %}
+          </div>
+          <div class="ct-item-name">
+            <a href="{% url 'detalle_producto' item.producto.pk %}" style="color:inherit;text-decoration:none">{{ item.producto.nombre }}</a>
+          </div>
+          <div class="ct-item-unit">${{ item.producto.precio_con_descuento|cop }} c/u</div>
+          {% if item.cantidad >= item.producto.stock %}
+          <div class="ct-item-stock-warn"><i class="fas fa-exclamation-triangle"></i> Máximo disponible</div>
+          {% endif %}
+        </div>
+
+        <form method="post" action="{% url 'actualizar_carrito' item.pk %}" class="ct-item-qty">
+          {% csrf_token %}
+          <div class="ct-qty-input-group">
+            <button type="submit" name="cantidad" value="{{ item.cantidad|add:"-1" }}" title="Quitar uno"><i class="fas fa-minus"></i></button>
+            <span class="ct-qty-display">{{ item.cantidad }}</span>
+            <button type="submit" name="cantidad" value="{{ item.cantidad|add:"1" }}" title="Agregar uno" {% if item.cantidad >= item.producto.stock %}disabled{% endif %}><i class="fas fa-plus"></i></button>
+          </div>
+        </form>
+
+        <div class="ct-item-price">${{ item.subtotal|cop }}</div>
+
+        <form method="post" action="{% url 'eliminar_carrito' item.pk %}" class="ct-item-remove">
+          {% csrf_token %}
+          <button type="submit" class="ct-item-remove" title="Eliminar" onclick="return confirm('¿Eliminar este producto del carrito?')">
+            <i class="fas fa-times"></i>
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- ══ RESUMEN ══ -->
+    <div class="ct-summary">
+      <h2>Resumen del pedido</h2>
+      <div class="ct-summary-row">
+        <span>Subtotal ({{ carrito.cantidad_items }} producto{{ carrito.cantidad_items|pluralize }})</span>
+        <span>${{ carrito.total|cop }}</span>
+      </div>
+      <div class="ct-summary-row" style="color:#888;font-size:0.9rem;">
+        <span>IVA (19%) incluido</span>
+        <span>${{ carrito.valor_iva|cop }}</span>
+      </div>
+      <div class="ct-summary-row">
+        <span>Envío</span>
+        <span>Se calcula al pagar</span>
+      </div>
+      <div class="ct-summary-row ct-total">
+        <span>Total</span>
+        <span>${{ carrito.total|cop }}</span>
+      </div>
+
+      <a href="{% url 'checkout' %}" class="btn-ct-checkout">
+        <i class="fas fa-lock"></i> Finalizar compra
+      </a>
+      <a href="{% url 'catalogo' %}" class="ct-seguir-comprando">
+        <i class="fas fa-arrow-left"></i> Seguir comprando
+      </a>
+      <form method="post" action="{% url 'vaciar_carrito' %}" style="margin-top:8px">
+        {% csrf_token %}
+        <button type="submit" class="ct-vaciar-btn-full" onclick="return confirm('¿Vaciar todo el carrito?')">
+          <i class="fas fa-trash-alt"></i> Vaciar carrito
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- ══ CARRITO VACÍO ══ -->
+  <div class="ct-empty">
+    <div class="ct-empty-icon"><i class="fas fa-shopping-cart"></i></div>
+    <h2>Tu carrito está vacío</h2>
+    <p>Agrega productos desde el catálogo para verlos aquí.</p>
+    <a href="{% url 'catalogo' %}" class="btn-ct-checkout"><i class="fas fa-th-large"></i> Ir al catálogo</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

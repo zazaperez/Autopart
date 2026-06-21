@@ -1,0 +1,47 @@
+{% extends "admin/base_admin.html" %}
+{% block titulo %}Eliminar Cliente — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Eliminar Cliente{% endblock %}
+{% block nav_usuarios %}active{% endblock %}
+
+{% block contenido %}
+
+<div style="font-size:.8rem;color:#9aa3b2;margin-bottom:1rem;">
+  <a href="{% url 'admin_dashboard' %}" style="color:#c0392b;text-decoration:none;">Dashboard</a> ›
+  <a href="{% url 'admin_usuarios' %}" style="color:#c0392b;text-decoration:none;">Clientes</a> › Eliminar
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card text-center p-4">
+
+      <div style="width:70px;height:70px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+        <i class="fas fa-user-times fa-2x" style="color:#c0392b"></i>
+      </div>
+
+      <h5 class="fw-bold mb-1">¿Eliminar este cliente?</h5>
+      <p class="text-muted mb-3" style="font-size:.9rem;">Esta acción es permanente y no se puede deshacer.</p>
+
+      <div class="fw-bold fs-6 mb-1">{{ cliente.get_full_name|default:cliente.username }}</div>
+      <div class="text-muted small mb-1">{{ cliente.email|default:"Sin email" }}</div>
+      <div class="text-muted small mb-3">{{ num_pedidos }} pedido{{ num_pedidos|pluralize }} registrado{{ num_pedidos|pluralize }}</div>
+
+      <div class="alert alert-warning text-start" style="font-size:.83rem;">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% if num_pedidos > 0 %}
+        Este cliente tiene pedidos asociados. Considera <strong>desactivarlo</strong> en vez de eliminarlo para conservar el historial.
+        {% else %}
+        Se eliminará la cuenta, perfil y carrito asociados a este cliente.
+        {% endif %}
+      </div>
+
+      <form method="post" class="d-flex gap-2 justify-content-center mt-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger px-4"><i class="fas fa-trash me-1"></i>Sí, eliminar</button>
+        <a href="{% url 'admin_usuarios' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

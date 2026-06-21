@@ -1,0 +1,69 @@
+{% extends "admin/base_admin.html" %}
+{% block titulo %}Categorías — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Gestión de Categorías{% endblock %}
+{% block nav_categorias %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:.5rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+  .cat-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:1.1rem; }
+  .cat-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1.25rem; display:flex; flex-direction:column; gap:.6rem; transition:transform .2s; }
+  .cat-card:hover { transform:translateY(-3px); }
+  .cat-icon { width:50px; height:50px; border-radius:12px; background:#fde8e8; color:#c0392b; display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
+  .cat-nombre { font-weight:700; color:#1a1a2e; font-size:1rem; }
+  .cat-desc { font-size:.8rem; color:#9aa3b2; min-height:2.2em; }
+  .cat-footer { display:flex; gap:.5rem; margin-top:.3rem; }
+  .btn-edit-sm   { flex:1; background:#f39c12; color:#fff; border:none; border-radius:8px; padding:.4rem; font-size:.78rem; font-weight:600; text-align:center; text-decoration:none; }
+  .btn-toggle-off-sm { flex:1; background:#c0392b; color:#fff; border:none; border-radius:8px; padding:.4rem; font-size:.78rem; font-weight:600; text-align:center; text-decoration:none; }
+  .btn-toggle-on-sm  { flex:1; background:#27ae60; color:#fff; border:none; border-radius:8px; padding:.4rem; font-size:.78rem; font-weight:600; text-align:center; text-decoration:none; }
+  .btn-del-sm { background:#f3f4f6; color:#6b7280; border:none; border-radius:8px; padding:.4rem .6rem; font-size:.78rem; text-decoration:none; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp"><a href="{% url 'admin_dashboard' %}">Dashboard</a> › Categorías</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h5 class="mb-0 fw-bold"><i class="fas fa-tags me-2" style="color:#c0392b"></i>Categorías</h5>
+    <small class="text-muted">{{ categorias|length }} categorías registradas</small>
+  </div>
+  <a href="{% url 'admin_categoria_crear' %}" class="btn btn-mp"><i class="fas fa-plus me-1"></i>Nueva categoría</a>
+</div>
+
+{% if categorias %}
+<div class="cat-grid">
+  {% for c in categorias %}
+  <div class="cat-card">
+    <div class="cat-icon"><i class="fas {{ c.icono|default:'fa-tag' }}"></i></div>
+    <div class="cat-nombre">{{ c.nombre }}</div>
+    <div class="cat-desc">{{ c.descripcion|default:"Sin descripción"|truncatewords:12 }}</div>
+    <div>
+      {% if c.activo %}
+      <span class="badge bg-success">Activa</span>
+      {% else %}
+      <span class="badge bg-secondary">Inactiva</span>
+      {% endif %}
+      <span class="badge bg-light text-dark">{{ c.num_productos }} producto{{ c.num_productos|pluralize }}</span>
+    </div>
+    <div class="cat-footer">
+      <a href="{% url 'admin_categoria_editar' c.pk %}" class="btn-edit-sm"><i class="fas fa-edit me-1"></i>Editar</a>
+      <a href="{% url 'admin_categoria_toggle' c.pk %}" class="{% if c.activo %}btn-toggle-off-sm{% else %}btn-toggle-on-sm{% endif %}" onclick="return confirm('¿Confirmas este cambio?')">
+        {% if c.activo %}Desactivar{% else %}Activar{% endif %}
+      </a>
+      <a href="{% url 'admin_categoria_eliminar' c.pk %}" class="btn-del-sm"><i class="fas fa-trash"></i></a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="fas fa-tags fa-2x mb-2 d-block"></i>
+  No hay categorías registradas
+  <div class="mt-3"><a href="{% url 'admin_categoria_crear' %}" class="btn btn-mp">Crear primera categoría</a></div>
+</div>
+{% endif %}
+
+{% endblock %}

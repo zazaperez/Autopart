@@ -1,0 +1,622 @@
+{% extends "tienda/base.html" %}
+{% load cop_filters %}
+{% load static %}
+{% block titulo %}Inicio — MOTOPART{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══ FONDO FIJO DE TODA LA PÁGINA ══ */
+.mp-home-bg-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)),
+    url('{% static "img/hero-tienda.png" %}');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ══ HERO ══ */
+.mp-hero {
+  background: #0d0d0d;
+  overflow: hidden;
+  position: relative;
+  height: 420px;
+  width: 100%;
+}
+.mp-hero-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 5%;     /* ◄ AQUÍ: solo padding IZQUIERDO (para el texto). El derecho queda en 0 para que la imagen llegue al borde */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .6s ease;
+}
+.mp-hero-slide.active { opacity: 1; pointer-events: auto; }
+.mp-hero-slide-1 { background: linear-gradient(100deg, #0d0d0d 45%, #1c1c1c 100%); }
+.mp-hero-slide-2 { background: linear-gradient(100deg, #0d0d0d 40%, #1a1a1a 100%); }
+.mp-hero-slide-3 { background: linear-gradient(100deg, #0d0d0d 40%, #111 100%); }
+
+.mp-hero-text {
+  flex: 0 0 38%;       /* ◄ AQUÍ: ancho del bloque de texto (baja el % para que la imagen gane más espacio) */
+  max-width: 500px;
+  z-index: 2;
+  position: relative;
+}
+.mp-hero-text h1 {
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+.mp-hero-text h1 span { color: var(--mp-rojo); }
+.mp-hero-text p {
+  color: #bbb;
+  font-size: 1rem;
+  margin-bottom: 24px;
+  max-width: 360px;
+}
+
+.btn-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--mp-rojo);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 13px 28px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background .2s, transform .15s;
+}
+.btn-hero:hover { background: var(--mp-rojo-hover); color: #fff; transform: translateY(-2px); }
+
+/* ════════════════════════════════════════════════════
+   PANEL DE CONTROL — IMAGEN DEL HERO (auto/producto)
+   Modifica los valores marcados con ◄ AQUÍ
+   ════════════════════════════════════════════════════ */
+.mp-hero-img {
+  flex: 1 1 80%;             /* ◄ AQUÍ: ancho del bloque de imagen (sube para que se estire más) */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 420px;             /* ◄ AQUÍ: alto del contenedor (antes max-height; ahora fijo para que la imagen lo llene) */
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+.mp-hero-img img {
+  width: 100%;               /* ◄ AQUÍ: ANCHO — 100% = llena TODO el contenedor (se estira) */
+  height: 100%;               /* ◄ AQUÍ: ALTO — 100% = llena TODO el alto del contenedor */
+  object-fit: cover;          /* ◄ AQUÍ: "cover" = llena y recorta sobrante | "contain" = se encoge para caber sin recortar */
+  object-position: top;       /* ◄ AQUÍ: qué parte de la foto se ve si se recorta: center, top, bottom, left, right (también admite % como "top 20%") */
+  border-radius: 0;         /* ◄ AQUÍ: bordes redondeados (0 = cuadrado, 20px = redondeado) */
+  opacity: 0.7;                /* ◄ AQUÍ: TRANSPARENCIA (1 = opaco/normal, 0 = invisible, 0.5 = mitad) */
+  filter: drop-shadow(0 25px 35px rgba(0,0,0,0.5));
+  /*       ◄ AQUÍ: SOMBRA → drop-shadow(desplazamiento-X desplazamiento-Y difuminado color)
+           - para quitarla del todo: filter: none;
+           - el último número de la rgba (0.5) es qué tan oscura es la sombra (0 a 1) */
+}
+
+/* Dots */
+.mp-hero-dots {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+.mp-hero-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  cursor: pointer;
+  transition: background .2s, transform .2s;
+  border: none;
+  padding: 0;
+}
+.mp-hero-dot.active { background: var(--mp-rojo); transform: scale(1.3); }
+
+/* ══ CATEGORÍAS ══ */
+.mp-cat-strip {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(3px);
+  border-bottom: 1px solid var(--mp-gris-borde);
+  padding: 22px 0;
+}
+.mp-cat-strip-inner {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 0 16px;
+}
+.mp-cat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #333;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  transition: background .2s, color .2s, transform .2s;
+  min-width: 80px;
+  border: 1px solid transparent;
+}
+.mp-cat-item:hover {
+  background: #fff5f5;
+  color: var(--mp-rojo);
+  border-color: #ffd0d0;
+  transform: translateY(-3px);
+}
+.mp-cat-icon {
+  width: 52px;
+  height: 52px;
+  background: #f5f5f5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  color: #555;
+  transition: background .2s, color .2s;
+  border: 2px solid transparent;
+}
+.mp-cat-item:hover .mp-cat-icon {
+  background: #fff;
+  color: var(--mp-rojo);
+  border-color: var(--mp-rojo);
+}
+.mp-cat-item-all .mp-cat-icon { background: var(--mp-rojo); color: #fff; }
+.mp-cat-item-all { color: var(--mp-rojo); }
+
+/* ══ SECCIÓN CATÁLOGO ══ */
+.mp-section {
+  padding: 40px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.mp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.mp-section-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #111;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mp-section-title::after {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: var(--mp-rojo);
+  border-radius: 2px;
+}
+.mp-filters { display: flex; gap: 10px; flex-wrap: wrap; }
+.mp-filters select {
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  color: #444;
+  outline: none;
+  cursor: pointer;
+  background: #fff;
+}
+.mp-filters select:focus { border-color: var(--mp-rojo); }
+
+/* ══ GRID PRODUCTOS ══ */
+.mp-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 18px;
+}
+.mp-product-card {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: box-shadow .2s, transform .2s;
+  position: relative;
+  border: 1px solid var(--mp-gris-borde);
+}
+.mp-product-card:hover {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  transform: translateY(-4px);
+}
+.mp-product-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 5px;
+  text-transform: uppercase;
+}
+.mp-badge-nuevo { background: #22c55e; color: #fff; }
+.mp-badge-oferta { background: var(--mp-rojo); color: #fff; }
+.mp-badge-stock  { background: #f59e0b; color: #fff; }
+
+.mp-product-img {
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #fafafa;
+}
+.mp-product-img img {
+  max-height: 130px;
+  max-width: 100%;
+  object-fit: contain;
+  transition: transform .3s;
+}
+.mp-product-card:hover .mp-product-img img { transform: scale(1.05); }
+.mp-product-img-placeholder {
+  width: 80px;
+  height: 80px;
+  background: #eee;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bbb;
+  font-size: 1.8rem;
+}
+
+.mp-product-body { padding: 12px 14px 14px; }
+
+/* Badge de categoría a color (chip pequeño arriba del nombre) */
+.mp-product-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  padding: 3px 9px;
+  border-radius: 5px;
+  margin-bottom: 8px;
+}
+.mp-product-cat-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* Paleta rotativa por categoría — se asigna automáticamente, sin tocar el modelo */
+.mp-cat-color-0 { background: #fef3e2; color: #b45309; }
+.mp-cat-color-1 { background: #e9f0ff; color: #1d4ed8; }
+.mp-cat-color-2 { background: #fee2e2; color: #b91c1c; }
+.mp-cat-color-3 { background: #ecfdf5; color: #047857; }
+.mp-cat-color-4 { background: #f3e8ff; color: #7e22ce; }
+.mp-cat-color-5 { background: #fdf2f8; color: #be185d; }
+
+.mp-product-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #222;
+  line-height: 1.35;
+  margin-bottom: 8px;
+  min-height: 2.4em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Specs con iconos (tipo de producto, capacidad, etc.) */
+.mp-product-specs { margin-bottom: 10px; }
+.mp-spec-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+.mp-spec-line i { width: 14px; color: #aaa; font-size: 0.75rem; text-align: center; }
+
+.mp-product-price { margin-bottom: 8px; }
+.mp-price-old  { font-size: 0.78rem; color: #999; text-decoration: line-through; }
+.mp-price-main { font-size: 1.1rem; font-weight: 800; color: var(--mp-rojo); }
+.mp-price-main.sin-desc { color: #111; }
+
+/* Disponibilidad con punto verde */
+.mp-product-stock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #16a34a;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.mp-product-stock i { font-size: 0.55rem; }
+.mp-product-stock.agotado { color: #dc2626; }
+
+.btn-ver-producto {
+  width: 100%;
+  background: var(--mp-rojo);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px;
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  text-decoration: none;
+  transition: background .2s;
+}
+.btn-ver-producto:hover { background: var(--mp-rojo-hover); color: #fff; }
+
+/* ══ MARCAS ══ */
+.mp-brands {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(3px);
+  border-top: 1px solid var(--mp-gris-borde);
+  border-bottom: 1px solid var(--mp-gris-borde);
+  padding: 28px 24px;
+  text-align: center;
+}
+.mp-brands-title {
+  font-size: 0.85rem;
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+}
+.mp-brands-list {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 26px 44px;
+}
+.mp-brand-logo {
+  font-size: 1.05rem;
+  opacity: 0.85;
+  transition: opacity .2s, transform .2s;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  letter-spacing: .3px;
+}
+.mp-brand-logo:hover { opacity: 1; transform: translateY(-2px); }
+
+/* Icono genérico decorativo (NO es el logo de la marca, solo referencia al tipo de producto) */
+.mp-brand-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+
+/* Wordmarks estilizados — tipografía/peso/color inspirados en cada marca,
+   sin reproducir sus logotipos oficiales. */
+.wm-bosch     { font-weight: 800; color: #ED0007; font-style: italic; letter-spacing: 0; }
+.wm-acdelco   { font-weight: 800; color: #00529B; }
+.wm-acdelco .wm-sub { font-weight: 600; color: #888; font-size: .72em; margin-left: 4px; letter-spacing: 1px; }
+.wm-mobil     { font-weight: 800; color: #E2231A; }
+.wm-mobil .wm-num { background: #003DA5; color: #fff; font-size: .65em; padding: 1px 5px; border-radius: 3px; margin-left: 4px; font-weight: 800; }
+.wm-castrol   { font-weight: 800; font-style: italic; color: #006838; }
+.wm-brembo    { font-weight: 900; color: #FFB81C; -webkit-text-stroke: .6px #C8102E; letter-spacing: .5px; }
+.wm-monroe    { font-weight: 800; color: #1A1A1A; letter-spacing: 2px; }
+.wm-mann      { font-weight: 800; color: #003478; letter-spacing: .5px; }
+.wm-mann .wm-sub { display: block; font-size: .55em; font-weight: 700; color: #ED1C24; letter-spacing: 2px; line-height: 1; }
+
+/* ══ EMPTY STATE ══ */
+.mp-empty { text-align: center; padding: 60px 20px; }
+.mp-empty i { font-size: 3rem; color: #ddd; margin-bottom: 16px; display: block; }
+.mp-empty p { color: #999; font-size: 1rem; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<!-- ══ FONDO FIJO DE PÁGINA (foto de la tienda) ══ -->
+<div class="mp-home-bg-fixed"></div>
+
+<!-- ══ HERO ══ -->
+<div class="mp-hero">
+  <div class="mp-hero-slide mp-hero-slide-1 active">
+    <div class="mp-hero-text">
+      <h1>Encuentra los mejores <span>repuestos</span> para tu vehículo</h1>
+      <p>Calidad garantizada, los mejores precios y envío rápido a todo el país.</p>
+      <a href="{% url 'catalogo' %}" class="btn-hero">Ver catálogo <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="mp-hero-img">
+<img src="{% static 'img/Banner_N.png' %}" alt="Banner">
+    </div>
+  </div>
+  <div class="mp-hero-slide mp-hero-slide-2">
+    <div class="mp-hero-text">
+      <h1>Control de <span>inventario</span> inteligente</h1>
+      <p>Gestiona tu taller con herramientas profesionales. Stock siempre actualizado.</p>
+      <a href="{% url 'catalogo' %}?orden=nuevo" class="btn-hero">Ver novedades <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="mp-hero-img">
+<img src="{% static 'img/Banner_B.png' %}" alt="Banner">
+    </div>
+  </div>
+  <div class="mp-hero-slide mp-hero-slide-3">
+    <div class="mp-hero-text">
+      <h1>Las mejores <span>marcas</span> al mejor precio</h1>
+      <p>Bosch, Mobil, Castrol, Brembo, Monroe y muchas más en un solo lugar.</p>
+      <a href="{% url 'catalogo' %}" class="btn-hero">Explorar marcas <i class="fas fa-arrow-right"></i></a>
+    </div>
+    <div class="mp-hero-img">
+      <img src="{% static 'img/Banner_R.png' %}" alt="Banner">
+    </div>
+  </div>
+  <div class="mp-hero-dots">
+    <button class="mp-hero-dot active" onclick="goSlide(0)"></button>
+    <button class="mp-hero-dot" onclick="goSlide(1)"></button>
+    <button class="mp-hero-dot" onclick="goSlide(2)"></button>
+  </div>
+</div>
+
+<!-- ══ MARCAS ══ -->
+<div class="mp-brands">
+  <div class="mp-brands-title">Marcas que confían en nosotros</div>
+  <div class="mp-brands-list">
+    <span class="mp-brand-logo wm-bosch"><span class="mp-brand-icon" style="background:#fde8e8;color:#ED0007"><i class="fas fa-bolt"></i></span>BOSCH</span>
+    <span class="mp-brand-logo wm-acdelco"><span class="mp-brand-icon" style="background:#e6eef7;color:#00529B"><i class="fas fa-car-battery"></i></span>AC<span class="wm-sub">DELCO</span></span>
+    <span class="mp-brand-logo wm-mobil"><span class="mp-brand-icon" style="background:#fdebe9;color:#E2231A"><i class="fas fa-oil-can"></i></span>Mobil<span class="wm-num">1</span></span>
+    <span class="mp-brand-logo wm-castrol"><span class="mp-brand-icon" style="background:#e6f3ec;color:#006838"><i class="fas fa-tint"></i></span>Castrol</span>
+    <span class="mp-brand-logo wm-brembo"><span class="mp-brand-icon" style="background:#fff4dc;color:#C8102E"><i class="fas fa-circle-notch"></i></span>BREMBO</span>
+    <span class="mp-brand-logo wm-monroe"><span class="mp-brand-icon" style="background:#eee;color:#1A1A1A"><i class="fas fa-car-side"></i></span>MONROE</span>
+    <span class="mp-brand-logo wm-mann"><span class="mp-brand-icon" style="background:#e6edf7;color:#003478"><i class="fas fa-filter"></i></span>MANN<span class="wm-sub">FILTER</span></span>
+    <a href="{% url 'catalogo' %}" style="font-size:.83rem;color:var(--mp-rojo);font-weight:600;text-decoration:none">
+      Ver más marcas <i class="fas fa-chevron-right ms-1" style="font-size:.75rem"></i>
+    </a>
+  </div>
+</div>
+
+<!-- ══ CATÁLOGO ══ -->
+<div class="mp-section">
+  <div class="mp-section-header">
+    <div class="mp-section-title">Catálogo de Repuestos</div>
+    <div class="mp-filters">
+      <select onchange="filtrar(this.value,'categoria')">
+        <option value="">Todas las categorías</option>
+        {% for cat in categorias %}
+          <option value="{{ cat.id }}" {% if categoria_activa == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nombre }}</option>
+        {% endfor %}
+      </select>
+      <select onchange="filtrar(this.value,'orden')">
+        <option value="">Más vendidos</option>
+        <option value="precio_asc"  {% if orden == 'precio_asc' %}selected{% endif %}>Precio ↑</option>
+        <option value="precio_desc" {% if orden == 'precio_desc' %}selected{% endif %}>Precio ↓</option>
+        <option value="nuevo"       {% if orden == 'nuevo' %}selected{% endif %}>Más nuevos</option>
+      </select>
+    </div>
+  </div>
+
+  {% if busqueda %}
+    <p style="color:#888;font-size:.88rem;margin-bottom:20px">
+      Resultados para: <strong style="color:#222">{{ busqueda }}</strong> — {{ productos|length }} producto{{ productos|length|pluralize }}
+    </p>
+  {% endif %}
+
+  {% if productos %}
+  <div class="mp-products-grid">
+    {% for p in productos %}
+    <div class="mp-product-card">
+      {% if p.stock_bajo %}<span class="mp-product-badge mp-badge-stock">Stock bajo</span>{% endif %}
+      <div class="mp-product-img">
+        {% if p.imagen %}<img src="{{ p.imagen.url }}" alt="{{ p.nombre }}">
+        {% else %}<div class="mp-product-img-placeholder"><i class="fas fa-cog"></i></div>{% endif %}
+      </div>
+      <div class="mp-product-body">
+        {% if p.categoria %}
+        {% cycle 'mp-cat-color-0' 'mp-cat-color-1' 'mp-cat-color-2' 'mp-cat-color-3' 'mp-cat-color-4' 'mp-cat-color-5' as cat_color silent %}
+        <span class="mp-product-cat-badge {{ cat_color }}">
+          {{ p.categoria }}{% if p.marca %} · {{ p.marca }}{% endif %}
+        </span>
+        {% endif %}
+        <div class="mp-product-name">{{ p.nombre }}</div>
+
+        {% if p.descripcion or p.marca %}
+        <div class="mp-product-specs">
+          {% if p.descripcion %}
+          <div class="mp-spec-line"><i class="fas fa-info-circle"></i> {{ p.descripcion|truncatechars:40 }}</div>
+          {% endif %}
+          {% if p.sku %}
+          <div class="mp-spec-line"><i class="fas fa-barcode"></i> SKU {{ p.sku }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="mp-product-price">
+          {% with precio_desc=p.precio_con_descuento %}
+            {% if precio_desc != p.precio %}
+              <div class="mp-price-old">${{ p.precio|cop }}</div>
+              <div class="mp-price-main">${{ precio_desc|cop }}</div>
+            {% else %}
+              <div class="mp-price-main sin-desc">${{ p.precio|cop }}</div>
+            {% endif %}
+          {% endwith %}
+        </div>
+
+        <div class="mp-product-stock {% if p.stock <= 0 %}agotado{% endif %}">
+          {% if p.stock > 0 %}
+            <i class="fas fa-circle"></i> {{ p.stock }} disponibles
+          {% else %}
+            <i class="fas fa-circle"></i> Agotado
+          {% endif %}
+        </div>
+
+        <a href="{% url 'detalle_producto' p.pk %}" class="btn-ver-producto">
+          Ver producto <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="mp-empty">
+    <i class="fas fa-search"></i>
+    <p>No se encontraron productos{% if busqueda %} para "<strong>{{ busqueda }}</strong>"{% endif %}.</p>
+    <a href="{% url 'catalogo' %}" class="btn-mp px-4 py-2 mt-2 d-inline-block text-decoration-none">Ver todo el catálogo</a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>  
+function filtrar(val, param) {
+  const url = new URL(window.location);
+  if (val) url.searchParams.set(param, val);
+  else url.searchParams.delete(param);
+  window.location = url;
+}
+let currentSlide = 0;
+const slides = document.querySelectorAll('.mp-hero-slide');
+const dots = document.querySelectorAll('.mp-hero-dot');
+function goSlide(n) {
+  slides[currentSlide].classList.remove('active');
+  dots[currentSlide].classList.remove('active');
+  currentSlide = (n + slides.length) % slides.length;
+  slides[currentSlide].classList.add('active');
+  dots[currentSlide].classList.add('active');
+}
+setInterval(() => goSlide(currentSlide + 1), 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "admin/base_admin.html" %}
+{% block titulo %}Eliminar Categoría — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Eliminar Categoría{% endblock %}
+{% block nav_categorias %}active{% endblock %}
+
+{% block contenido %}
+
+<div style="font-size:.8rem;color:#9aa3b2;margin-bottom:1rem;">
+  <a href="{% url 'admin_dashboard' %}" style="color:#c0392b;text-decoration:none;">Dashboard</a> ›
+  <a href="{% url 'admin_categorias' %}" style="color:#c0392b;text-decoration:none;">Categorías</a> › Eliminar
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card text-center p-4">
+
+      <div style="width:70px;height:70px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+        <i class="fas {{ categoria.icono|default:'fa-tag' }} fa-2x" style="color:#c0392b"></i>
+      </div>
+
+      <h5 class="fw-bold mb-1">¿Eliminar esta categoría?</h5>
+      <p class="text-muted mb-3" style="font-size:.9rem;">Esta acción es permanente y no se puede deshacer.</p>
+
+      <div class="fw-bold fs-6 mb-1">{{ categoria.nombre }}</div>
+      <div class="text-muted small mb-3">{{ num_productos }} producto{{ num_productos|pluralize }} asociado{{ num_productos|pluralize }}</div>
+
+      <div class="alert alert-warning text-start" style="font-size:.83rem;">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% if num_productos > 0 %}
+        Hay productos en esta categoría. Si la eliminas, esos productos quedarán <strong>sin categoría</strong>. Considera <strong>desactivarla</strong> en su lugar.
+        {% else %}
+        No hay productos asociados a esta categoría.
+        {% endif %}
+      </div>
+
+      <form method="post" class="d-flex gap-2 justify-content-center mt-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger px-4"><i class="fas fa-trash me-1"></i>Sí, eliminar</button>
+        <a href="{% url 'admin_categorias' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,339 @@
+{% extends "tienda/base.html" %}
+{% load cop_filters %}
+{% block titulo %}{{ producto.nombre }} — AUTOPART{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══ BREADCRUMB ══ */
+.dp-breadcrumb {
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 20px;
+}
+.dp-breadcrumb a { color: #888; text-decoration: none; transition: color .2s; }
+.dp-breadcrumb a:hover { color: var(--mp-rojo); }
+.dp-breadcrumb .current { color: #222; font-weight: 600; }
+.dp-breadcrumb i { font-size: 0.7rem; margin: 0 8px; color: #ccc; }
+
+/* ══ PANEL PRINCIPAL ══ */
+.dp-main {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 32px;
+  background: #fff;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+}
+@media (max-width: 768px) { .dp-main { grid-template-columns: 1fr; } }
+
+.dp-img-box {
+  background: #fafafa;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  padding: 24px;
+}
+.dp-img-box img { max-height: 360px; max-width: 100%; object-fit: contain; }
+.dp-img-placeholder {
+  width: 140px;
+  height: 140px;
+  background: #eee;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bbb;
+  font-size: 3rem;
+}
+
+.dp-info-tag {
+  font-size: 0.78rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.dp-info-tag a { color: inherit; text-decoration: none; }
+.dp-title { font-size: 1.7rem; font-weight: 800; color: #111; line-height: 1.25; margin-bottom: 8px; }
+.dp-sku { font-size: 0.8rem; color: #999; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+.dp-sku i { font-size: 0.75rem; }
+
+.dp-price-old { font-size: 0.95rem; color: #999; text-decoration: line-through; margin-bottom: 2px; }
+.dp-price-main { font-size: 2rem; font-weight: 800; color: var(--mp-rojo); margin-bottom: 16px; }
+.dp-price-main.sin-desc { color: #111; }
+
+.dp-descripcion { color: #555; font-size: 0.95rem; line-height: 1.6; margin-bottom: 18px; }
+
+.dp-stock { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #444; margin-bottom: 22px; }
+.dp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.dp-badge-ok { background: #dcfce7; color: #16a34a; }
+.dp-badge-out { background: #fee2e2; color: #dc2626; }
+
+.dp-form { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.dp-qty {
+  width: 80px;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 0.95rem;
+  text-align: center;
+  outline: none;
+}
+.dp-qty:focus { border-color: var(--mp-rojo); }
+.dp-btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--mp-rojo);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 13px 30px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .2s, transform .15s;
+}
+.dp-btn-add:hover { background: var(--mp-rojo-hover); color: #fff; transform: translateY(-2px); }
+
+/* ══ COMPATIBILIDAD ══ */
+.dp-section-card {
+  background: #fff;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 32px;
+}
+.dp-section-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #111;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.dp-section-title i {
+  width: 36px;
+  height: 36px;
+  background: #fff0f0;
+  color: var(--mp-rojo);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.dp-compat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.dp-compat-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: #333;
+  transition: border-color .2s, background .2s;
+}
+.dp-compat-item:hover { border-color: #cde9d8; background: #f7fdf9; }
+.dp-compat-item i { color: #16a34a; font-size: 0.95rem; margin-top: 2px; flex-shrink: 0; }
+.dp-compat-notes { color: #999; font-size: 0.78rem; display: block; margin-top: 2px; }
+
+/* ══ RELACIONADOS ══ */
+.dp-related-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #111;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 36px 0 20px;
+}
+.dp-related-title::after {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 4px;
+  background: var(--mp-rojo);
+  border-radius: 2px;
+}
+.dp-related-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+}
+.dp-rel-card {
+  background: #fff;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: box-shadow .2s, transform .2s;
+}
+.dp-rel-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.1); transform: translateY(-4px); }
+.dp-rel-img {
+  height: 140px;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.dp-rel-img img { max-height: 116px; max-width: 100%; object-fit: contain; }
+.dp-rel-img-placeholder { color: #bbb; font-size: 1.8rem; }
+.dp-rel-body { padding: 12px 14px 14px; }
+.dp-rel-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #222;
+  line-height: 1.35;
+  margin-bottom: 8px;
+  min-height: 2.3em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dp-rel-price { font-size: 1rem; font-weight: 800; color: var(--mp-rojo); margin-bottom: 10px; }
+.dp-rel-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--mp-rojo);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background .2s;
+}
+.dp-rel-btn:hover { background: var(--mp-rojo-hover); color: #fff; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<!-- ══ BREADCRUMB ══ -->
+<nav class="dp-breadcrumb">
+  <a href="{% url 'catalogo' %}"><i class="fas fa-th-large"></i> Catálogo</a>
+  <i class="fas fa-chevron-right"></i>
+  <span class="current">{{ producto.nombre }}</span>
+</nav>
+
+<!-- ══ PANEL PRINCIPAL ══ -->
+<div class="dp-main">
+  <!-- Imagen -->
+  <div class="dp-img-box">
+    {% if producto.imagen %}
+      <img src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}">
+    {% else %}
+      <div class="dp-img-placeholder"><i class="fas fa-cog"></i></div>
+    {% endif %}
+  </div>
+
+  <!-- Info -->
+  <div>
+    <div class="dp-info-tag">
+      {% if producto.categoria %}<a href="{% url 'catalogo' %}?categoria={{ producto.categoria.id }}">{{ producto.categoria }}</a>{% endif %}
+      {% if producto.marca %} · {{ producto.marca }}{% endif %}
+    </div>
+    <h1 class="dp-title">{{ producto.nombre }}</h1>
+    <p class="dp-sku"><i class="fas fa-barcode"></i> SKU: {{ producto.sku }}</p>
+
+    {% with precio_desc=producto.precio_con_descuento %}
+      {% if precio_desc != producto.precio %}
+        <p class="dp-price-old">${{ producto.precio|cop }}</p>
+        <h2 class="dp-price-main">${{ precio_desc|cop }}</h2>
+      {% else %}
+        <h2 class="dp-price-main sin-desc">${{ producto.precio|cop }}</h2>
+      {% endif %}
+      <p class="dp-iva-nota" style="font-size:0.85rem;color:#888;margin-top:-4px;">
+        IVA (19%) incluido: ${{ producto.valor_iva|cop }}
+      </p>
+    {% endwith %}
+
+    <p class="dp-descripcion">{{ producto.descripcion }}</p>
+
+    <div class="dp-stock">
+      <span>Stock:</span>
+      {% if producto.stock > 0 %}
+        <span class="dp-badge dp-badge-ok"><i class="fas fa-check-circle"></i> {{ producto.stock }} disponibles</span>
+      {% else %}
+        <span class="dp-badge dp-badge-out"><i class="fas fa-times-circle"></i> Agotado</span>
+      {% endif %}
+    </div>
+
+    {% if producto.stock > 0 %}
+    <form method="post" action="{% url 'agregar_carrito' producto.pk %}" class="dp-form">
+      {% csrf_token %}
+      <input type="number" name="cantidad" value="1" min="1" max="{{ producto.stock }}" class="dp-qty">
+      <button class="dp-btn-add"><i class="fas fa-cart-plus"></i> Agregar al carrito</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ══ COMPATIBILIDAD ══ -->
+{% if compatibilidades %}
+<div class="dp-section-card">
+  <div class="dp-section-title"><i class="fas fa-car"></i> Vehículos compatibles</div>
+  <div class="dp-compat-grid">
+    {% for c in compatibilidades %}
+    <div class="dp-compat-item">
+      <i class="fas fa-check-circle"></i>
+      <span>
+        {{ c.vehiculo }}
+        {% if c.notas %}<span class="dp-compat-notes">{{ c.notas }}</span>{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ══ RELACIONADOS ══ -->
+{% if relacionados %}
+<div class="dp-related-title">Productos relacionados</div>
+<div class="dp-related-grid">
+  {% for r in relacionados %}
+  <div class="dp-rel-card">
+    <div class="dp-rel-img">
+      {% if r.imagen %}
+        <img src="{{ r.imagen.url }}" alt="{{ r.nombre }}">
+      {% else %}
+        <i class="fas fa-cog dp-rel-img-placeholder"></i>
+      {% endif %}
+    </div>
+    <div class="dp-rel-body">
+      <p class="dp-rel-name">{{ r.nombre }}</p>
+      <div class="dp-rel-price">${{ r.precio|cop }}</div>
+      <a href="{% url 'detalle_producto' r.pk %}" class="dp-rel-btn"><i class="fas fa-eye"></i> Ver</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

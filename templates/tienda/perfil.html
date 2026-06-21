@@ -1,0 +1,521 @@
+{% extends "tienda/base.html" %}
+{% load cop_filters %}
+{% block titulo %}Mi perfil — AUTOPART{% endblock %}
+
+{% block extra_css %}
+<style>
+.pf-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) { .pf-layout { grid-template-columns: 1fr; } }
+
+/* ══ SIDEBAR ══ */
+.pf-sidebar {
+  background: #0e1015;
+  border-radius: 16px;
+  padding: 28px 20px;
+  position: sticky;
+  top: 90px;
+}
+.pf-user-card { text-align: center; padding-bottom: 22px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 18px; }
+.pf-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #1c1f26;
+  border: 2px solid rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  overflow: hidden;
+}
+.pf-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pf-avatar i { color: #555; font-size: 1.6rem; }
+.pf-user-name { color: #fff; font-weight: 700; font-size: 1.02rem; margin-bottom: 2px; }
+.pf-user-email { color: #888; font-size: 0.78rem; word-break: break-word; }
+.pf-user-since {
+  display: inline-block;
+  margin-top: 10px;
+  background: rgba(255,255,255,0.08);
+  color: #ccc;
+  font-size: 0.72rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.pf-nav-label {
+  color: #666;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.pf-nav { list-style: none; padding: 0; margin: 0 0 20px; }
+.pf-nav li { margin-bottom: 4px; }
+.pf-nav a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 14px;
+  border-radius: 9px;
+  color: #ccc;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: background .2s, color .2s;
+}
+.pf-nav a i { width: 16px; text-align: center; color: #888; transition: color .2s; }
+.pf-nav a:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.pf-nav a.active { background: linear-gradient(90deg, rgba(232,0,29,0.18), rgba(232,0,29,0.02)); color: #fff; border-left: 3px solid var(--mp-rojo); padding-left: 11px; }
+.pf-nav a.active i { color: var(--mp-rojo); }
+
+.pf-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  background: rgba(232,0,29,0.1);
+  border: 1px solid rgba(232,0,29,0.3);
+  color: var(--mp-rojo);
+  border-radius: 9px;
+  padding: 11px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background .2s;
+}
+.pf-logout:hover { background: rgba(232,0,29,0.18); color: var(--mp-rojo); }
+
+/* ══ PANEL DERECHO ══ */
+.pf-content h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #111;
+  margin-bottom: 2px;
+}
+.pf-content > p { color: #888; font-size: 0.9rem; margin-bottom: 22px; }
+
+.pf-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .pf-grid { grid-template-columns: 1fr; } }
+
+.pf-card {
+  background: #fff;
+  border: 1px solid var(--mp-gris-borde);
+  border-radius: 14px;
+  padding: 24px 26px;
+  margin-bottom: 20px;
+}
+.pf-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.pf-card-title { display: flex; align-items: flex-start; gap: 12px; }
+.pf-card-icon {
+  width: 38px;
+  height: 38px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.pf-card-title h2 { font-size: 0.98rem; font-weight: 700; color: #111; margin: 0 0 2px; }
+.pf-card-title p { font-size: 0.8rem; color: #999; margin: 0; }
+
+.btn-pf-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #fff;
+  border: 1px solid var(--mp-rojo);
+  color: var(--mp-rojo);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .2s;
+}
+.btn-pf-outline:hover { background: #fff5f5; color: var(--mp-rojo); }
+
+/* Vista de solo lectura */
+.pf-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.pf-info-row:last-child { border-bottom: none; padding-bottom: 0; }
+.pf-info-row i { color: #aaa; font-size: 0.95rem; margin-top: 3px; width: 16px; text-align: center; }
+.pf-info-row .pf-label { font-size: 0.78rem; color: #999; margin-bottom: 2px; }
+.pf-info-row .pf-value { font-size: 0.93rem; color: #222; font-weight: 600; }
+.pf-info-row .pf-value.muted { color: #aaa; font-weight: 400; font-style: italic; }
+
+/* Formulario de edición (oculto hasta hacer click en Editar) */
+.pf-edit-form { display: none; }
+.pf-edit-form.is-open { display: block; }
+.pf-info-view.is-hidden { display: none; }
+.pf-edit-form .form-label { font-size: 0.82rem; font-weight: 600; color: #444; }
+.pf-edit-form .form-control { border-radius: 8px; border-color: var(--mp-gris-borde); font-size: 0.9rem; }
+.pf-edit-form .form-control:focus { border-color: var(--mp-rojo); box-shadow: 0 0 0 .2rem rgba(232,0,29,.1); }
+.pf-form-actions { display: flex; gap: 10px; margin-top: 6px; }
+.btn-pf-cancel {
+  background: #f1f1f1;
+  border: none;
+  color: #555;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Pedidos vacío */
+.pf-empty-orders { text-align: center; padding: 20px 10px 8px; }
+.pf-empty-icon {
+  width: 70px;
+  height: 70px;
+  background: #f5f5f5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: #bbb;
+  font-size: 1.6rem;
+}
+.pf-empty-orders h3 { font-size: 1rem; font-weight: 700; color: #222; margin-bottom: 4px; }
+.pf-empty-orders p { font-size: 0.85rem; color: #999; margin-bottom: 18px; }
+
+.btn-pf-solid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--mp-rojo);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background .2s;
+}
+.btn-pf-solid:hover { background: var(--mp-rojo-hover); color: #fff; }
+
+/* Tabla de pedidos */
+.pf-orders-table { font-size: 0.85rem; }
+.pf-orders-table thead th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .4px; color: #888; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+.pf-orders-table td { padding: 12px 8px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+
+/* Seguridad / direcciones (secciones simples tipo lista) */
+.pf-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.pf-list-item:last-child { border-bottom: none; padding-bottom: 0; }
+.pf-list-item-left { display: flex; align-items: flex-start; gap: 12px; }
+.pf-list-item-left i { color: #999; font-size: 1rem; margin-top: 2px; }
+.pf-list-item-left h4 { font-size: 0.9rem; font-weight: 700; color: #222; margin: 0 0 2px; }
+.pf-list-item-left p { font-size: 0.8rem; color: #999; margin: 0; }
+.pf-list-item-arrow { color: #ccc; font-size: 0.85rem; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="pf-layout">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="pf-sidebar">
+    <div class="pf-user-card">
+      <div class="pf-avatar">
+        {% if perfil.foto %}
+          <img src="{{ perfil.foto.url }}" alt="{{ user.first_name }}">
+        {% else %}
+          <i class="fas fa-user"></i>
+        {% endif %}
+      </div>
+      <div class="pf-user-name">{{ user.first_name|default:user.username }} {{ user.last_name }}</div>
+      <div class="pf-user-email">{{ user.email }}</div>
+      <span class="pf-user-since">Cliente desde {{ user.date_joined|date:"Y" }}</span>
+    </div>
+
+    <div class="pf-nav-label">Mi cuenta</div>
+    <ul class="pf-nav">
+      <li><a href="{% url 'catalogo' %}"><i class="fas fa-home"></i> Resumen</a></li>
+      <li><a href="{% url 'perfil' %}" class="active"><i class="fas fa-user"></i> Mi perfil</a></li>
+      <li><a href="{% url 'perfil' %}#pedidos"><i class="fas fa-box"></i> Mis pedidos</a></li>
+      <li><a href="{% url 'perfil' %}#direcciones"><i class="fas fa-map-marker-alt"></i> Direcciones</a></li>
+      <li><a href="{% url 'perfil' %}#pagos"><i class="fas fa-credit-card"></i> Métodos de pago</a></li>
+    </ul>
+
+    <a href="{% url 'logout' %}" class="pf-logout"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+  </aside>
+
+  <!-- ══ CONTENIDO ══ -->
+  <div class="pf-content">
+    <h1>Mi perfil</h1>
+    <p>Administra tu información personal y de contacto.</p>
+
+    <div class="pf-grid">
+      <!-- Columna izquierda: info personal + direcciones -->
+      <div>
+        <div class="pf-card">
+          <div class="pf-card-header">
+            <div class="pf-card-title">
+              <div class="pf-card-icon"><i class="fas fa-user"></i></div>
+              <div>
+                <h2>Información personal</h2>
+                <p>Tus datos personales y de contacto.</p>
+              </div>
+            </div>
+            <button type="button" class="btn-pf-outline" onclick="pfToggleEdit()">
+              <i class="fas fa-pen"></i> <span id="pfEditBtnLabel">Editar información</span>
+            </button>
+          </div>
+
+          <!-- Vista de solo lectura -->
+          <div class="pf-info-view" id="pfInfoView">
+            <div class="pf-info-row">
+              <i class="fas fa-user"></i>
+              <div>
+                <div class="pf-label">Nombre</div>
+                <div class="pf-value {% if not user.first_name %}muted{% endif %}">{{ user.first_name|default:"Sin definir" }}</div>
+              </div>
+            </div>
+            <div class="pf-info-row">
+              <i class="fas fa-user"></i>
+              <div>
+                <div class="pf-label">Apellido</div>
+                <div class="pf-value {% if not user.last_name %}muted{% endif %}">{{ user.last_name|default:"Sin definir" }}</div>
+              </div>
+            </div>
+            <div class="pf-info-row">
+              <i class="fas fa-envelope"></i>
+              <div>
+                <div class="pf-label">Correo electrónico</div>
+                <div class="pf-value">{{ user.email }}</div>
+              </div>
+            </div>
+            <div class="pf-info-row">
+              <i class="fas fa-phone"></i>
+              <div>
+                <div class="pf-label">Teléfono</div>
+                <div class="pf-value {% if not perfil.telefono %}muted{% endif %}">{{ perfil.telefono|default:"Sin definir" }}</div>
+              </div>
+            </div>
+            <div class="pf-info-row">
+              <i class="fas fa-map-marker-alt"></i>
+              <div>
+                <div class="pf-label">Dirección</div>
+                <div class="pf-value {% if not perfil.direccion %}muted{% endif %}">
+                  {% if perfil.direccion %}{{ perfil.direccion }}{% if perfil.ciudad %}, {{ perfil.ciudad }}{% endif %}{% if perfil.departamento %}, {{ perfil.departamento }}{% endif %}{% else %}Sin definir{% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="pf-info-row">
+              <i class="fas fa-image"></i>
+              <div>
+                <div class="pf-label">Foto de perfil</div>
+                <div class="pf-value {% if not perfil.foto %}muted{% endif %}">{% if perfil.foto %}Foto cargada{% else %}No tienes una foto de perfil{% endif %}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulario de edición -->
+          <form method="post" enctype="multipart/form-data" class="pf-edit-form" id="pfEditForm">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">Nombre</label>
+              <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Apellido</label>
+              <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Correo</label>
+              <input type="email" name="email" class="form-control" value="{{ user.email }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Teléfono</label>
+              <input type="text" name="telefono" class="form-control" value="{{ perfil.telefono }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Dirección</label>
+              <input type="text" name="direccion" class="form-control" value="{{ perfil.direccion }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Departamento</label>
+              <input type="text" name="departamento" class="form-control" value="{{ perfil.departamento }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Ciudad</label>
+              <input type="text" name="ciudad" class="form-control" value="{{ perfil.ciudad }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Foto de perfil</label>
+              <input type="file" name="foto" class="form-control" accept="image/*">
+            </div>
+            <div class="pf-form-actions">
+              <button type="submit" class="btn-pf-solid"><i class="fas fa-check"></i> Guardar cambios</button>
+              <button type="button" class="btn-pf-cancel" onclick="pfToggleEdit()">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Direcciones guardadas -->
+        <div class="pf-card" id="direcciones">
+          <div class="pf-card-header">
+            <div class="pf-card-title">
+              <div class="pf-card-icon"><i class="fas fa-map-marker-alt"></i></div>
+              <div>
+                <h2>Direcciones guardadas</h2>
+                <p>Administra tus direcciones de envío.</p>
+              </div>
+            </div>
+          </div>
+          <div class="pf-list-item">
+            <div class="pf-list-item-left">
+              <i class="fas fa-home"></i>
+              <div>
+                <h4>Dirección principal</h4>
+                <p>{% if perfil.direccion %}{{ perfil.direccion }}{% if perfil.ciudad %}, {{ perfil.ciudad }}{% endif %}{% if perfil.departamento %}, {{ perfil.departamento }}{% endif %}{% else %}No has registrado una dirección{% endif %}</p>
+              </div>
+            </div>
+            <button type="button" class="btn-pf-outline" onclick="pfToggleEdit()">Gestionar direcciones <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna derecha: pedidos + seguridad -->
+      <div>
+        <div class="pf-card" id="pedidos">
+          <div class="pf-card-header">
+            <div class="pf-card-title">
+              <div class="pf-card-icon"><i class="fas fa-box"></i></div>
+              <div>
+                <h2>Mis pedidos</h2>
+                <p>Consulta el estado de tus pedidos recientes.</p>
+              </div>
+            </div>
+          </div>
+
+          {% if pedidos %}
+            <div class="table-responsive">
+              <table class="table pf-orders-table mb-0">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Fecha</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in pedidos %}
+                  <tr>
+                    <td>#{{ p.pk }}</td>
+                    <td>{{ p.fecha_pedido|date:"d/m/Y" }}</td>
+                    <td class="fw-bold">${{ p.total|cop }}</td>
+                    <td>
+                      {% if p.estado == 'entregado' %}
+                        <span class="badge bg-success">{{ p.get_estado_display }}</span>
+                      {% elif p.estado == 'cancelado' %}
+                        <span class="badge bg-danger">{{ p.get_estado_display }}</span>
+                      {% elif p.estado == 'enviado' %}
+                        <span class="badge bg-info">{{ p.get_estado_display }}</span>
+                      {% else %}
+                        <span class="badge bg-warning text-dark">{{ p.get_estado_display }}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <a href="{% url 'comprobante' p.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="pf-empty-orders">
+              <div class="pf-empty-icon"><i class="fas fa-box-open"></i></div>
+              <h3>Aún no tienes pedidos</h3>
+              <p>Cuando realices un pedido, lo verás aquí.</p>
+              <a href="{% url 'catalogo' %}" class="btn-pf-solid"><i class="fas fa-th-large"></i> Ir al catálogo</a>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Seguridad de la cuenta -->
+        <div class="pf-card" id="pagos">
+          <div class="pf-card-header">
+            <div class="pf-card-title">
+              <div class="pf-card-icon"><i class="fas fa-shield-alt"></i></div>
+              <div>
+                <h2>Seguridad de la cuenta</h2>
+                <p>Gestiona la seguridad de tu cuenta.</p>
+              </div>
+            </div>
+          </div>
+          <div class="pf-list-item">
+            <div class="pf-list-item-left">
+              <i class="fas fa-lock"></i>
+              <div>
+                <h4>Cambiar contraseña</h4>
+                <p>Actualiza tu contraseña para mantener tu cuenta segura.</p>
+              </div>
+            </div>
+            <span class="pf-list-item-arrow" style="cursor:default" title="Próximamente"><i class="fas fa-chevron-right"></i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function pfToggleEdit() {
+  const view = document.getElementById('pfInfoView');
+  const form = document.getElementById('pfEditForm');
+  const label = document.getElementById('pfEditBtnLabel');
+  const isOpen = form.classList.contains('is-open');
+  if (isOpen) {
+    form.classList.remove('is-open');
+    view.classList.remove('is-hidden');
+    label.textContent = 'Editar información';
+  } else {
+    form.classList.add('is-open');
+    view.classList.add('is-hidden');
+    label.textContent = 'Cerrar edición';
+  }
+}
+</script>
+{% endblock %}

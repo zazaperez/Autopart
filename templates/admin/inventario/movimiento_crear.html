@@ -1,0 +1,141 @@
+{% extends "admin/base_admin.html" %}
+{% block titulo %}Registrar Movimiento — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Registrar Movimiento{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:1rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .form-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1.25rem; }
+  .form-card-header { padding:1rem 1.25rem; border-bottom:1px solid #f0f2f5; display:flex; align-items:center; gap:.6rem; }
+  .form-card-header h6 { margin:0; font-weight:700; color:#1a1a2e; font-size:.92rem; }
+  .form-label { font-size:.82rem; font-weight:600; color:#555; margin-bottom:.3rem; }
+  .form-control, .form-select { border-radius:8px; border:1px solid #e0e0e0; font-size:.88rem; padding:.5rem .85rem; }
+  .form-control:focus, .form-select:focus { border-color:#c0392b; box-shadow:0 0 0 3px rgba(192,57,43,.1); }
+
+  .tipo-info { background:#f8f9fb; border-radius:10px; padding:.85rem 1rem; font-size:.82rem; color:#555; margin-top:.75rem; display:none; }
+  .tipo-info.activo { display:block; }
+  .tipo-info i { color:#c0392b; margin-right:6px; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> ›
+  <a href="{% url 'admin_inventario' %}">Inventario</a> › Registrar movimiento
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="row g-3">
+
+    <div class="col-lg-8">
+      <div class="form-card">
+        <div class="form-card-header">
+          <i class="fas fa-warehouse" style="color:#c0392b"></i>
+          <h6>Detalle del movimiento</h6>
+        </div>
+        <div class="p-4">
+
+          <div class="mb-3">
+            <label class="form-label">Producto <span class="text-danger">*</span></label>
+            <select name="producto" class="form-select" required>
+              <option value="">Selecciona un producto...</option>
+              {% for p in productos %}
+              <option value="{{ p.pk }}">{{ p.nombre }} (SKU: {{ p.sku }}) — Stock actual: {{ p.stock }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Tipo de movimiento <span class="text-danger">*</span></label>
+              <select name="tipo" id="tipoSelect" class="form-select" required onchange="mostrarInfoTipo()">
+                <option value="">Selecciona...</option>
+                {% for valor, etiqueta in tipos %}
+                <option value="{{ valor }}">{{ etiqueta }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Cantidad <span class="text-danger">*</span></label>
+              <input type="number" name="cantidad" class="form-control" min="1" required placeholder="Ej: 10">
+              <small class="text-muted">Escribe solo el número positivo, el sistema ajusta el signo según el tipo.</small>
+            </div>
+          </div>
+
+          <div id="infoEntrada" class="tipo-info">
+            <i class="fas fa-arrow-up"></i> Esta cantidad se <strong>sumará</strong> al stock del producto.
+          </div>
+          <div id="infoCompra" class="tipo-info">
+            <i class="fas fa-arrow-up"></i> Compra a proveedor: esta cantidad se <strong>sumará</strong> al stock.
+          </div>
+          <div id="infoSalida" class="tipo-info">
+            <i class="fas fa-arrow-down"></i> Esta cantidad se <strong>restará</strong> del stock del producto.
+          </div>
+          <div id="infoAjuste" class="tipo-info">
+            <i class="fas fa-arrow-down"></i> Ajuste manual: esta cantidad se <strong>restará</strong> del stock (usar para mermas, daños, conteos).
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Proveedor <span class="text-muted">(opcional)</span></label>
+            <select name="proveedor" class="form-select">
+              <option value="">— Ninguno —</option>
+              {% for prov in proveedores %}
+              <option value="{{ prov.pk }}">{{ prov.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Referencia <span class="text-muted">(opcional)</span></label>
+            <input type="text" name="referencia" class="form-control" placeholder="Ej: Factura #4521, Pedido #102">
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Notas <span class="text-muted">(opcional)</span></label>
+            <textarea name="notas" class="form-control" rows="3" placeholder="Detalles adicionales..."></textarea>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="form-card">
+        <div class="form-card-header">
+          <i class="fas fa-info-circle" style="color:#c0392b"></i>
+          <h6>Tipos de movimiento</h6>
+        </div>
+        <div class="p-4" style="font-size:.82rem; color:#555;">
+          <p class="mb-2"><strong style="color:#16a34a">Entrada:</strong> ingreso de mercancía nueva al inventario.</p>
+          <p class="mb-2"><strong style="color:#1d4ed8">Compra a proveedor:</strong> reposición de stock comprada a un proveedor.</p>
+          <p class="mb-2"><strong style="color:#dc2626">Salida por venta:</strong> se registra normalmente automático cuando se confirma un pedido.</p>
+          <p class="mb-0"><strong style="color:#6d28d9">Ajuste manual:</strong> correcciones por conteo físico, daños o pérdidas.</p>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-mp w-100 py-2 mb-2">
+        <i class="fas fa-save me-1"></i>Registrar movimiento
+      </button>
+      <a href="{% url 'admin_inventario' %}" class="btn btn-outline-secondary w-100">Cancelar</a>
+    </div>
+
+  </div>
+</form>
+
+<script>
+  function mostrarInfoTipo() {
+    document.querySelectorAll('.tipo-info').forEach(el => el.classList.remove('activo'));
+    const valor = document.getElementById('tipoSelect').value;
+    const mapa = { 'E': 'infoEntrada', 'C': 'infoCompra', 'S': 'infoSalida', 'A': 'infoAjuste' };
+    if (mapa[valor]) {
+      document.getElementById(mapa[valor]).classList.add('activo');
+    }
+  }
+</script>
+
+{% endblock %}

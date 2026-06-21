@@ -1,0 +1,188 @@
+{% extends "admin/base_admin.html" %}
+{% load cop_filters %}
+{% block titulo %}Productos — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Gestión de Productos{% endblock %}
+{% block nav_productos %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:.25rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .filtro-bar { background:#fff; border-radius:12px; padding:.9rem 1.25rem; margin-bottom:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,.06); display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+  .filtro-bar input, .filtro-bar select { border-radius:8px; border:1px solid #e0e0e0; padding:.45rem .85rem; font-size:.85rem; }
+  .filtro-bar input { flex:1; min-width:200px; }
+  .btn-filtrar { background:#1a1a2e; color:#fff; border:none; border-radius:8px; padding:.45rem 1.25rem; font-size:.85rem; font-weight:600; cursor:pointer; }
+  .btn-filtrar:hover { background:#0f3460; }
+
+  .prod-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem; }
+
+  .prod-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; display:flex; flex-direction:column; transition:transform .2s, box-shadow .2s; }
+  .prod-card:hover { transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,0,0,.12); }
+
+  .prod-card-img { width:100%; height:200px; object-fit:cover; background:#f4f6f8; }
+  .prod-card-img-placeholder { width:100%; height:200px; background:#f4f6f8; display:flex; align-items:center; justify-content:center; color:#ccc; font-size:3rem; }
+
+  .prod-card-body { padding:1rem; flex:1; }
+  .prod-card-title { font-size:1rem; font-weight:700; color:#1a1a2e; margin-bottom:.4rem; }
+
+  .prod-tags { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.6rem; }
+  .prod-tag { font-size:.7rem; padding:2px 8px; border-radius:20px; font-weight:500; }
+  .tag-cat  { background:#fde8e8; color:#c0392b; }
+  .tag-sku  { background:#e8f4fd; color:#2980b9; }
+  .tag-marca{ background:#f0f0f0; color:#555; }
+
+  .prod-stock { font-size:.85rem; font-weight:600; margin-bottom:.35rem; }
+  .stock-ok   { color:#27ae60; }
+  .stock-bajo { color:#c0392b; }
+
+  .prod-price { font-size:1.05rem; font-weight:800; color:#1a1a2e; margin-bottom:.5rem; }
+
+  .prod-badge-activo   { display:inline-block; background:#dcfce7; color:#16a34a; border-radius:20px; font-size:.72rem; font-weight:600; padding:2px 10px; }
+  .prod-badge-inactivo { display:inline-block; background:#f3f4f6; color:#6b7280; border-radius:20px; font-size:.72rem; font-weight:600; padding:2px 10px; }
+
+  .prod-card-footer { padding:.75rem 1rem; border-top:1px solid #f3f4f6; display:flex; gap:.5rem; }
+  .btn-edit   { flex:1; background:#f39c12; color:#fff; border:none; border-radius:8px; padding:.45rem; font-size:.82rem; font-weight:600; text-align:center; text-decoration:none; cursor:pointer; }
+  .btn-edit:hover { background:#e67e22; color:#fff; }
+  .btn-toggle { flex:1; border:none; border-radius:8px; padding:.45rem; font-size:.82rem; font-weight:600; text-align:center; text-decoration:none; cursor:pointer; }
+  .btn-toggle-off { background:#c0392b; color:#fff; }
+  .btn-toggle-off:hover { background:#a93226; color:#fff; }
+  .btn-toggle-on  { background:#27ae60; color:#fff; }
+  .btn-toggle-on:hover { background:#1e8449; color:#fff; }
+
+  .empty-state { text-align:center; padding:4rem 2rem; color:#9aa3b2; }
+  .empty-state i { font-size:3rem; margin-bottom:1rem; display:block; }
+
+  .pagination-wrap { margin-top:1.5rem; display:flex; justify-content:space-between; align-items:center; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<!-- ENCABEZADO -->
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-mp"><a href="{% url 'admin_dashboard' %}">Dashboard</a> › Productos</div>
+    <h4 class="fw-bold mb-0"><i class="fas fa-boxes me-2" style="color:#c0392b"></i>Catálogo de Productos</h4>
+  </div>
+  <a href="{% url 'admin_producto_crear' %}" class="btn btn-mp px-4">
+    <i class="fas fa-plus me-1"></i> Nuevo Producto
+  </a>
+</div>
+
+<!-- FILTROS -->
+<form method="get">
+  <div class="filtro-bar">
+    <i class="fas fa-search" style="color:#9aa3b2"></i>
+    <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Buscar por nombre o SKU...">
+    <select name="categoria">
+      <option value="">Todas las categorías</option>
+      {% for c in categorias %}
+      <option value="{{ c.pk }}" {% if request.GET.categoria == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+    <select name="estado">
+      <option value="">Todos los estados</option>
+      <option value="activo"     {% if request.GET.estado == 'activo' %}selected{% endif %}>Activos</option>
+      <option value="inactivo"   {% if request.GET.estado == 'inactivo' %}selected{% endif %}>Inactivos</option>
+      <option value="stock_bajo" {% if request.GET.estado == 'stock_bajo' %}selected{% endif %}>Stock bajo</option>
+    </select>
+    <button type="submit" class="btn-filtrar"><i class="fas fa-filter me-1"></i>Filtrar</button>
+    <a href="{% url 'admin_productos' %}" style="font-size:.82rem;color:#9aa3b2;text-decoration:none;">Limpiar</a>
+  </div>
+</form>
+
+<!-- CONTADOR -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <small class="text-muted">{{ total }} producto{{ total|pluralize }} encontrado{{ total|pluralize }}</small>
+</div>
+
+<!-- GRID DE CARDS -->
+{% if productos %}
+<div class="prod-grid">
+  {% for p in productos %}
+  <div class="prod-card">
+
+    {% if p.imagen %}
+    <img src="{{ p.imagen.url }}" class="prod-card-img" alt="{{ p.nombre }}">
+    {% else %}
+    <div class="prod-card-img-placeholder"><i class="fas fa-car-side"></i></div>
+    {% endif %}
+
+    <div class="prod-card-body">
+      <div class="prod-card-title">{{ p.nombre }}</div>
+
+      <div class="prod-tags">
+        {% if p.categoria %}<span class="prod-tag tag-cat"><i class="fas fa-tag me-1"></i>{{ p.categoria.nombre }}</span>{% endif %}
+        <span class="prod-tag tag-sku"><i class="fas fa-barcode me-1"></i>{{ p.sku }}</span>
+        {% if p.marca %}<span class="prod-tag tag-marca">{{ p.marca.nombre }}</span>{% endif %}
+      </div>
+
+      <div class="prod-price">${{ p.precio|cop }}</div>
+
+      <div class="prod-stock {% if p.stock_bajo %}stock-bajo{% else %}stock-ok{% endif %}">
+        <i class="fas fa-cubes me-1"></i>{{ p.stock }} unidades
+      </div>
+
+      <div class="mt-2">
+        {% if p.activo %}
+        <span class="prod-badge-activo"><i class="fas fa-check-circle me-1"></i>Disponible</span>
+        {% else %}
+        <span class="prod-badge-inactivo"><i class="fas fa-times-circle me-1"></i>Inactivo</span>
+        {% endif %}
+        {% if p.stock_bajo %}
+        <span class="ms-1" style="background:#fee2e2;color:#dc2626;border-radius:20px;font-size:.7rem;font-weight:600;padding:2px 8px;display:inline-block;">
+          <i class="fas fa-exclamation-triangle me-1"></i>Stock bajo
+        </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="prod-card-footer">
+      <a href="{% url 'admin_producto_editar' p.pk %}" class="btn-edit">
+        <i class="fas fa-edit me-1"></i>Editar
+      </a>
+      <a href="{% url 'admin_producto_toggle' p.pk %}"
+         class="btn-toggle {% if p.activo %}btn-toggle-off{% else %}btn-toggle-on{% endif %}"
+         onclick="return confirm('¿Confirmas este cambio?')">
+        {% if p.activo %}<i class="fas fa-eye-slash me-1"></i>Desactivar
+        {% else %}<i class="fas fa-eye me-1"></i>Activar{% endif %}
+      </a>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+
+<!-- PAGINACIÓN -->
+{% if productos.has_other_pages %}
+<div class="pagination-wrap">
+  <small class="text-muted">Página {{ productos.number }} de {{ productos.paginator.num_pages }}</small>
+  <nav>
+    <ul class="pagination pagination-sm mb-0">
+      {% if productos.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ productos.previous_page_number }}&q={{ request.GET.q }}&categoria={{ request.GET.categoria }}&estado={{ request.GET.estado }}">‹</a></li>
+      {% endif %}
+      {% for n in productos.paginator.page_range %}
+      <li class="page-item {% if n == productos.number %}active{% endif %}">
+        <a class="page-link" href="?page={{ n }}&q={{ request.GET.q }}&categoria={{ request.GET.categoria }}&estado={{ request.GET.estado }}">{{ n }}</a>
+      </li>
+      {% endfor %}
+      {% if productos.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ productos.next_page_number }}&q={{ request.GET.q }}&categoria={{ request.GET.categoria }}&estado={{ request.GET.estado }}">›</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+  <i class="fas fa-box-open"></i>
+  No se encontraron productos
+  <div class="mt-3"><a href="{% url 'admin_producto_crear' %}" class="btn btn-mp">Crear primer producto</a></div>
+</div>
+{% endif %}
+
+{% endblock %}

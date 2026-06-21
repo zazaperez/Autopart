@@ -1,0 +1,51 @@
+{% extends "admin/base_admin.html" %}
+{% block titulo %}Eliminar Proveedor — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Eliminar Proveedor{% endblock %}
+{% block nav_proveedores %}active{% endblock %}
+
+{% block contenido %}
+
+<div style="font-size:.8rem;color:#9aa3b2;margin-bottom:1rem;">
+  <a href="{% url 'admin_dashboard' %}" style="color:#c0392b;text-decoration:none;">Dashboard</a> ›
+  <a href="{% url 'admin_proveedores' %}" style="color:#c0392b;text-decoration:none;">Proveedores</a> › Eliminar
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card text-center p-4">
+
+      <div style="width:70px;height:70px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+        <i class="fas fa-trash fa-2x" style="color:#c0392b"></i>
+      </div>
+
+      <h5 class="fw-bold mb-1">¿Eliminar este proveedor?</h5>
+      <p class="text-muted mb-3" style="font-size:.9rem;">
+        Por seguridad de tus datos, el proveedor no se borra de la base —
+        se marca como <strong>inactivo</strong> y deja de aparecer disponible para nuevos productos.
+      </p>
+
+      <div class="fw-bold fs-6 mb-1">{{ proveedor.nombre }}</div>
+      <div class="text-muted small mb-1">NIT: {{ proveedor.nit|default:"—" }}</div>
+      <div class="text-muted small mb-3">{{ proveedor.ciudad|default:"Ciudad no especificada" }}</div>
+
+      {% if num_productos > 0 %}
+      <div class="alert alert-warning text-start" style="font-size:.83rem;">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Este proveedor tiene <strong>{{ num_productos }}</strong> producto{{ num_productos|pluralize }} asociado{{ num_productos|pluralize }}.
+        Al desactivarlo, esos productos conservarán su historial pero el proveedor no podrá usarse en nuevos registros.
+      </div>
+      {% endif %}
+
+      <form method="post" class="d-flex gap-2 justify-content-center mt-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger px-4">
+          <i class="fas fa-trash me-1"></i>Sí, desactivar
+        </button>
+        <a href="{% url 'admin_proveedores' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

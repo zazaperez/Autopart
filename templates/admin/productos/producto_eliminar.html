@@ -1,0 +1,54 @@
+{% extends "admin/base_admin.html" %}
+{% load cop_filters %}
+{% block titulo %}Eliminar Producto — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Eliminar Producto{% endblock %}
+{% block nav_productos %}active{% endblock %}
+
+{% block contenido %}
+
+<div style="font-size:.8rem;color:#9aa3b2;margin-bottom:1rem;">
+  <a href="{% url 'admin_dashboard' %}" style="color:#c0392b;text-decoration:none;">Dashboard</a> ›
+  <a href="{% url 'admin_productos' %}" style="color:#c0392b;text-decoration:none;">Productos</a> › Eliminar
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card text-center p-4">
+
+      <div style="width:70px;height:70px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;">
+        <i class="fas fa-trash fa-2x" style="color:#c0392b"></i>
+      </div>
+
+      <h5 class="fw-bold mb-1">¿Eliminar este producto?</h5>
+      <p class="text-muted mb-3" style="font-size:.9rem;">Esta acción es permanente y no se puede deshacer.</p>
+
+      {% if producto.imagen %}
+      <img src="{{ producto.imagen.url }}" style="width:100px;height:100px;object-fit:cover;border-radius:10px;margin:0 auto .75rem;display:block;">
+      {% else %}
+      <div style="width:100px;height:100px;background:#f4f6f8;border-radius:10px;margin:0 auto .75rem;display:flex;align-items:center;justify-content:center;">
+        <i class="fas fa-box fa-2x" style="color:#ccc"></i>
+      </div>
+      {% endif %}
+
+      <div class="fw-bold fs-6 mb-1">{{ producto.nombre }}</div>
+      <div class="text-muted small mb-1">SKU: {{ producto.sku }}</div>
+      <div class="text-muted small mb-3">Stock: {{ producto.stock }} uds · ${{ producto.precio|cop }}</div>
+
+      <div class="alert alert-warning text-start" style="font-size:.83rem;">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Al eliminar este producto también se eliminarán sus compatibilidades y registros relacionados.
+      </div>
+
+      <form method="post" class="d-flex gap-2 justify-content-center mt-2">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger px-4">
+          <i class="fas fa-trash me-1"></i>Sí, eliminar
+        </button>
+        <a href="{% url 'admin_productos' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

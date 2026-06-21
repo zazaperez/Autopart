@@ -1,0 +1,178 @@
+{% extends "admin/base_admin.html" %}
+{% load cop_filters %}
+{% block titulo %}Editar Producto — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Editar Producto{% endblock %}
+{% block nav_productos %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .form-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1.25rem; }
+  .form-card-header { padding:1rem 1.25rem; border-bottom:1px solid #f0f2f5; display:flex; align-items:center; gap:.6rem; }
+  .form-card-header h6 { margin:0; font-weight:700; color:#1a1a2e; font-size:.92rem; }
+  .form-label { font-size:.82rem; font-weight:600; color:#555; margin-bottom:.3rem; }
+  .form-control, .form-select { border-radius:8px; border:1px solid #e0e0e0; font-size:.88rem; padding:.5rem .85rem; }
+  .form-control:focus, .form-select:focus { border-color:#c0392b; box-shadow:0 0 0 3px rgba(192,57,43,.1); }
+  .img-preview-wrap { border:2px dashed #e0e0e0; border-radius:12px; padding:1.5rem; text-align:center; color:#9aa3b2; cursor:pointer; transition:border-color .2s; position:relative; min-height:140px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .img-preview-wrap:hover { border-color:#c0392b; }
+  .img-preview-wrap input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:.5rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> ›
+  <a href="{% url 'admin_productos' %}">Productos</a> › Editar: {{ producto.nombre }}
+</div>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <div class="row g-3">
+
+    <!-- IZQUIERDA -->
+    <div class="col-lg-8">
+
+      <div class="form-card">
+        <div class="form-card-header">
+          <i class="fas fa-info-circle" style="color:#c0392b"></i>
+          <h6>Información básica</h6>
+        </div>
+        <div class="p-4">
+          <div class="mb-3">
+            <label class="form-label">Nombre del producto <span class="text-danger">*</span></label>
+            <input type="text" name="nombre" class="form-control" value="{{ producto.nombre }}" required>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">SKU / Código <span class="text-danger">*</span></label>
+              <input type="text" name="sku" class="form-control" value="{{ producto.sku }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Precio final <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" name="precio" class="form-control" value="{{ producto.precio }}" required min="0" max="9999999999.99" step="0.01">
+              </div>
+              <small class="text-muted">
+                Precio de venta al público, IVA (19%) ya incluido
+                (IVA actual: ${{ producto.valor_iva|cop }}).
+              </small>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Descripción</label>
+            <textarea name="descripcion" class="form-control" rows="4">{{ producto.descripcion }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-card-header">
+          <i class="fas fa-warehouse" style="color:#c0392b"></i>
+          <h6>Inventario</h6>
+        </div>
+        <div class="p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Stock actual <span class="text-danger">*</span></label>
+              <input type="number" name="stock" class="form-control" value="{{ producto.stock }}" required min="0">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Stock mínimo</label>
+              <input type="number" name="stock_minimo" class="form-control" value="{{ producto.stock_minimo }}" min="0">
+              <small class="text-muted">Alerta cuando baje de este número</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DERECHA -->
+    <div class="col-lg-4">
+
+      <div class="form-card">
+        <div class="form-card-header">
+          <i class="fas fa-image" style="color:#c0392b"></i>
+          <h6>Imagen</h6>
+        </div>
+        <div class="p-4">
+          <div class="img-preview-wrap" id="imgWrap">
+            {% if producto.imagen %}
+            <img id="imgPreview" src="{{ producto.imagen.url }}" style="max-height:160px;border-radius:8px;margin-bottom:.75rem;">
+            <div id="imgPlaceholder" style="display:none">
+            {% else %}
+            <img id="imgPreview" style="max-height:160px;border-radius:8px;display:none;margin-bottom:.75rem;">
+            <div id="imgPlaceholder">
+            {% endif %}
+              <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color:#c0392b"></i>
+              <div style="font-size:.85rem">Haz clic para cambiar la imagen</div>
+            </div>
+            <input type="file" name="imagen" accept="image/*" id="imgInput">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="form-card-header">
+          <i class="fas fa-tags" style="color:#c0392b"></i>
+          <h6>Clasificación</h6>
+        </div>
+        <div class="p-4">
+          <div class="mb-3">
+            <label class="form-label">Categoría</label>
+            <select name="categoria" class="form-select">
+              <option value="">— Sin categoría —</option>
+              {% for c in categorias %}
+              <option value="{{ c.pk }}" {% if producto.categoria_id == c.pk %}selected{% endif %}>{{ c.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Marca</label>
+            <select name="marca" class="form-select">
+              <option value="">— Sin marca —</option>
+              {% for m in marcas %}
+              <option value="{{ m.pk }}" {% if producto.marca_id == m.pk %}selected{% endif %}>{{ m.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" name="activo" id="activoSwitch" {% if producto.activo %}checked{% endif %}>
+            <label class="form-check-label form-label" for="activoSwitch">Producto activo</label>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-mp w-100 py-2 mb-2">
+        <i class="fas fa-save me-1"></i>Guardar cambios
+      </button>
+      <a href="{% url 'admin_productos' %}" class="btn btn-outline-secondary w-100 mb-2">Cancelar</a>
+      <a href="{% url 'admin_producto_eliminar' producto.pk %}" class="btn btn-outline-danger w-100">
+        <i class="fas fa-trash me-1"></i>Eliminar producto
+      </a>
+
+    </div>
+  </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById('imgInput').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const preview = document.getElementById('imgPreview');
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+      document.getElementById('imgPlaceholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  });
+</script>
+{% endblock %}

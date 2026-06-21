@@ -1,0 +1,116 @@
+{% extends "admin/base_admin.html" %}
+{% block titulo %}Inventario — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Inventario{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:1rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .alert-stock-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1rem 1.25rem; margin-bottom:1.25rem; border-left:4px solid #e74c3c; }
+  .alert-stock-card h6 { font-weight:700; color:#c0392b; font-size:.88rem; margin-bottom:.6rem; display:flex; align-items:center; gap:6px; }
+  .stock-chip { display:inline-flex; align-items:center; gap:6px; background:#fee2e2; color:#dc2626; font-size:.78rem; font-weight:600; padding:5px 12px; border-radius:8px; margin:3px 4px 3px 0; }
+
+  .filter-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1rem 1.25rem; margin-bottom:1.25rem; display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; }
+  .filter-card input, .filter-card select { border-radius:8px; border:1px solid #e0e0e0; font-size:.86rem; padding:.5rem .85rem; }
+  .filter-card input:focus, .filter-card select:focus { outline:none; border-color:#c0392b; box-shadow:0 0 0 3px rgba(192,57,43,.1); }
+
+  .mov-table { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; }
+  .mov-table table { width:100%; border-collapse:collapse; }
+  .mov-table th { background:#f8f9fb; font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:#9aa3b2; padding:.85rem 1.1rem; text-align:left; font-weight:700; }
+  .mov-table td { padding:.85rem 1.1rem; border-top:1px solid #f0f2f5; font-size:.87rem; vertical-align:middle; }
+  .mov-table tr:hover td { background:#fafbfc; }
+
+  .tipo-badge { display:inline-flex; align-items:center; gap:5px; font-size:.74rem; font-weight:700; padding:4px 11px; border-radius:8px; white-space:nowrap; }
+  .badge-E { background:#dcfce7; color:#16a34a; }
+  .badge-C { background:#dbeafe; color:#1d4ed8; }
+  .badge-S { background:#fee2e2; color:#dc2626; }
+  .badge-A { background:#ede9fe; color:#6d28d9; }
+
+  .cantidad-pos { color:#16a34a; font-weight:700; }
+  .cantidad-neg { color:#dc2626; font-weight:700; }
+
+  .btn-nuevo { background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff; border:none; border-radius:10px; padding:.55rem 1.1rem; font-weight:600; font-size:.88rem; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .btn-nuevo:hover { color:#fff; filter:brightness(1.05); }
+
+  .empty-state { text-align:center; padding:3.5rem 1rem; color:#9aa3b2; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> › Inventario
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">Inventario</h5>
+  <a href="{% url 'admin_movimiento_crear' %}" class="btn-nuevo">
+    <i class="fas fa-plus"></i> Registrar movimiento
+  </a>
+</div>
+
+{% if productos_stock_bajo %}
+<div class="alert-stock-card">
+  <h6><i class="fas fa-exclamation-triangle"></i> Productos con stock bajo</h6>
+  {% for p in productos_stock_bajo %}
+  <span class="stock-chip"><i class="fas fa-box"></i> {{ p.nombre }} ({{ p.stock }} uds.)</span>
+  {% endfor %}
+</div>
+{% endif %}
+
+<form method="get" class="filter-card">
+  <input type="text" name="q" placeholder="Buscar por producto, SKU o referencia..." value="{{ q }}" style="flex:1 1 260px;">
+  <select name="tipo">
+    <option value="">Todos los tipos</option>
+    {% for valor, etiqueta in tipos %}
+    <option value="{{ valor }}" {% if tipo_filtro == valor %}selected{% endif %}>{{ etiqueta }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-mp px-4"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+
+<div class="mov-table">
+  {% if movimientos %}
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Producto</th>
+        <th>Tipo</th>
+        <th>Cantidad</th>
+        <th>Proveedor</th>
+        <th>Referencia</th>
+        <th>Usuario</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in movimientos %}
+      <tr>
+        <td>{{ m.fecha|date:"d/m/Y H:i" }}</td>
+        <td><strong>{{ m.producto.nombre }}</strong><br><span class="text-muted" style="font-size:.76rem;">{{ m.producto.sku }}</span></td>
+        <td><span class="tipo-badge badge-{{ m.tipo }}">{{ m.get_tipo_display }}</span></td>
+        <td>
+          {% if m.cantidad > 0 %}
+          <span class="cantidad-pos">+{{ m.cantidad }}</span>
+          {% else %}
+          <span class="cantidad-neg">{{ m.cantidad }}</span>
+          {% endif %}
+        </td>
+        <td>{{ m.proveedor.nombre|default:"—" }}</td>
+        <td>{{ m.referencia|default:"—" }}</td>
+        <td>{{ m.usuario.username|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-warehouse fa-2x mb-2"></i>
+    <p class="mb-0">No hay movimientos registrados</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "admin/base_admin.html" %}
+{% load cop_filters %}
+{% block titulo %}Productos más vendidos — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Reporte de Productos más vendidos{% endblock %}
+{% block nav_reportes %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:1rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .filter-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1rem 1.25rem; margin-bottom:1.25rem; display:flex; gap:.75rem; flex-wrap:wrap; align-items:end; }
+  .filter-card label { font-size:.74rem; font-weight:700; color:#9aa3b2; text-transform:uppercase; letter-spacing:.04em; display:block; margin-bottom:.3rem; }
+  .filter-card input, .filter-card select { border-radius:8px; border:1px solid #e0e0e0; font-size:.86rem; padding:.5rem .85rem; }
+  .filter-card input:focus, .filter-card select:focus { outline:none; border-color:#2980b9; box-shadow:0 0 0 3px rgba(41,128,185,.1); }
+
+  .panel { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1.25rem; margin-bottom:1.25rem; }
+  .panel h6 { font-weight:700; font-size:.92rem; margin-bottom:1rem; }
+
+  .rank-table { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; }
+  .rank-table table { width:100%; border-collapse:collapse; }
+  .rank-table th { background:#f8f9fb; font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:#9aa3b2; padding:.85rem 1.1rem; text-align:left; font-weight:700; }
+  .rank-table td { padding:.85rem 1.1rem; border-top:1px solid #f0f2f5; font-size:.87rem; vertical-align:middle; }
+  .rank-table tr:hover td { background:#fafbfc; }
+  .puesto { font-weight:800; color:#9aa3b2; font-size:.9rem; }
+  .puesto.top3 { color:#f39c12; }
+  .barra-bg { background:#eef1f5; border-radius:6px; height:8px; width:100%; overflow:hidden; margin-top:5px; }
+  .barra-fill { background:linear-gradient(90deg,#2980b9,#3498db); height:100%; border-radius:6px; }
+
+  .sin-mov-table { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; }
+  .sin-mov-table table { width:100%; border-collapse:collapse; }
+  .sin-mov-table th { background:#fff7ed; font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:#b45309; padding:.85rem 1.1rem; text-align:left; font-weight:700; }
+  .sin-mov-table td { padding:.7rem 1.1rem; border-top:1px solid #f0f2f5; font-size:.86rem; }
+  .empty-state { text-align:center; padding:3rem 1rem; color:#9aa3b2; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> › <a href="{% url 'admin_reportes' %}">Reportes</a> › Productos más vendidos
+</div>
+
+<h5 class="fw-bold mb-3">Productos más vendidos</h5>
+
+<form method="get" class="filter-card">
+  <div>
+    <label>Desde</label>
+    <input type="date" name="desde" value="{{ desde }}">
+  </div>
+  <div>
+    <label>Hasta</label>
+    <input type="date" name="hasta" value="{{ hasta }}">
+  </div>
+  <div>
+    <label>Categoría</label>
+    <select name="categoria">
+      <option value="">Todas</option>
+      {% for c in categorias %}
+      <option value="{{ c.id }}" {% if categoria_filtro == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-mp px-4"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+
+<div class="panel">
+  <h6><i class="fas fa-chart-bar me-1"></i> Top 10 — unidades vendidas</h6>
+  <canvas id="chartTop10" height="90"></canvas>
+</div>
+
+<div class="rank-table mb-3">
+  {% if ranking %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Producto</th>
+        <th>SKU</th>
+        <th>Unidades vendidas</th>
+        <th>Pedidos</th>
+        <th>Ingresos</th>
+        <th>Stock actual</th>
+        <th style="width:160px;">Participación</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in ranking %}
+      <tr>
+        <td class="puesto {% if r.puesto <= 3 %}top3{% endif %}">#{{ r.puesto }}</td>
+        <td>{{ r.nombre }}</td>
+        <td><code>{{ r.sku }}</code></td>
+        <td><strong>{{ r.unidades_vendidas }}</strong></td>
+        <td>{{ r.num_pedidos }}</td>
+        <td>${{ r.ingresos|cop }}</td>
+        <td>
+          {% if r.stock_actual is not None %}{{ r.stock_actual }} uds.{% else %}—{% endif %}
+        </td>
+        <td>
+          <div class="barra-bg"><div class="barra-fill" style="width:{{ r.porcentaje }}%;"></div></div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-chart-simple fa-2x mb-2"></i>
+    <p class="mb-0">No hay ventas registradas en este periodo.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel mb-2">
+  <h6><i class="fas fa-triangle-exclamation me-1" style="color:#b45309;"></i> Productos sin movimiento en este periodo ({{ total_sin_movimiento }})</h6>
+  <p class="text-muted mb-3" style="font-size:.83rem;">No registraron ventas en el rango seleccionado. Evalúa si vale la pena seguir comprándolos al proveedor.</p>
+  <div class="sin-mov-table">
+    {% if sin_movimiento %}
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>SKU</th>
+          <th>Categoría</th>
+          <th>Stock actual</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in sin_movimiento %}
+        <tr>
+          <td>{{ p.nombre }}</td>
+          <td><code>{{ p.sku }}</code></td>
+          <td>{{ p.categoria.nombre|default:"—" }}</td>
+          <td>{{ p.stock }} uds.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="fas fa-circle-check fa-2x mb-2"></i>
+      <p class="mb-0">Todos los productos activos tuvieron al menos una venta en este periodo.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctxTop = document.getElementById('chartTop10');
+  new Chart(ctxTop, {
+    type: 'bar',
+    data: {
+      labels: {{ top10_labels|safe }},
+      datasets: [{
+        label: 'Unidades vendidas',
+        data: {{ top10_data|safe }},
+        backgroundColor: '#2980b9',
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+</script>
+{% endblock %}

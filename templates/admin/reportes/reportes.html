@@ -1,0 +1,75 @@
+{% extends "admin/base_admin.html" %}
+{% block titulo %}Reportes — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Reportes{% endblock %}
+{% block nav_reportes %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:1rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .rep-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:1rem; }
+  @media(max-width:992px){ .rep-grid{ grid-template-columns:1fr; } }
+
+  .rep-card {
+    background:#fff; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,.07);
+    padding:1.6rem 1.5rem; text-decoration:none; color:inherit; display:flex; flex-direction:column;
+    gap:.7rem; transition:transform .15s ease, box-shadow .15s ease; border-top:4px solid transparent;
+  }
+  .rep-card:hover { transform:translateY(-3px); box-shadow:0 8px 22px rgba(0,0,0,.12); color:inherit; }
+
+  .rep-card.ventas { border-top-color:#16a34a; }
+  .rep-card.inventario { border-top-color:#e74c3c; }
+  .rep-card.productos { border-top-color:#2980b9; }
+
+  .rep-icono { width:52px; height:52px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:1.35rem; }
+  .rep-card.ventas .rep-icono { background:#dcfce7; color:#16a34a; }
+  .rep-card.inventario .rep-icono { background:#fee2e2; color:#dc2626; }
+  .rep-card.productos .rep-icono { background:#dbeafe; color:#1d4ed8; }
+
+  .rep-card h6 { font-weight:700; font-size:1.02rem; margin:0; }
+  .rep-card p { font-size:.85rem; color:#7a8290; margin:0; line-height:1.5; }
+  .rep-card .rep-ir { margin-top:auto; font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:6px; }
+  .rep-card.ventas .rep-ir { color:#16a34a; }
+  .rep-card.inventario .rep-ir { color:#dc2626; }
+  .rep-card.productos .rep-ir { color:#1d4ed8; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> › Reportes
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">Reportes</h5>
+</div>
+<p class="text-muted" style="font-size:.88rem;">Elige el reporte que necesitas consultar.</p>
+
+<div class="rep-grid">
+
+  <a href="{% url 'admin_reporte_ventas' %}" class="rep-card ventas">
+    <div class="rep-icono"><i class="fas fa-chart-line"></i></div>
+    <h6>Ventas por periodo</h6>
+    <p>El pulso del negocio: cuánto estás vendiendo, si vas mejor o peor que el periodo anterior y cuánto IVA debes declarar.</p>
+    <span class="rep-ir">Ver reporte <i class="fas fa-arrow-right"></i></span>
+  </a>
+
+  <a href="{% url 'admin_reporte_inventario' %}" class="rep-card inventario">
+    <div class="rep-icono"><i class="fas fa-boxes-stacked"></i></div>
+    <h6>Inventario / Stock bajo</h6>
+    <p>Qué productos se están quedando sin stock antes de que se agoten, y cuánto dinero tienes guardado en mercancía.</p>
+    <span class="rep-ir">Ver reporte <i class="fas fa-arrow-right"></i></span>
+  </a>
+
+  <a href="{% url 'admin_reporte_productos_vendidos' %}" class="rep-card productos">
+    <div class="rep-icono"><i class="fas fa-trophy"></i></div>
+    <h6>Productos más vendidos</h6>
+    <p>Qué referencias debes seguir comprando o promocionando, y cuáles casi no se mueven para no comprar de más.</p>
+    <span class="rep-ir">Ver reporte <i class="fas fa-arrow-right"></i></span>
+  </a>
+
+</div>
+
+{% endblock %}

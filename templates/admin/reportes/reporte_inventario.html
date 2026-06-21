@@ -1,0 +1,130 @@
+{% extends "admin/base_admin.html" %}
+{% load cop_filters %}
+{% block titulo %}Inventario / Stock bajo — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Reporte de Inventario{% endblock %}
+{% block nav_reportes %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:1rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  @media(max-width:992px){ .stat-row{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:576px){ .stat-row{ grid-template-columns:1fr; } }
+  .stat { background:#fff; border-radius:14px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .stat .lbl { font-size:.74rem; text-transform:uppercase; letter-spacing:.04em; color:#9aa3b2; font-weight:700; margin-bottom:4px; }
+  .stat .val { font-size:1.45rem; font-weight:800; color:#1a1a2e; }
+  .stat.alerta .val { color:#dc2626; }
+
+  .filter-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:1rem 1.25rem; margin-bottom:1.25rem; display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; }
+  .filter-card input, .filter-card select { border-radius:8px; border:1px solid #e0e0e0; font-size:.86rem; padding:.5rem .85rem; }
+  .filter-card input:focus, .filter-card select:focus { outline:none; border-color:#c0392b; box-shadow:0 0 0 3px rgba(192,57,43,.1); }
+  .chk-bajo { display:flex; align-items:center; gap:6px; font-size:.86rem; font-weight:600; color:#dc2626; }
+
+  .inv-table { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; }
+  .inv-table table { width:100%; border-collapse:collapse; }
+  .inv-table th { background:#f8f9fb; font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:#9aa3b2; padding:.85rem 1.1rem; text-align:left; font-weight:700; }
+  .inv-table td { padding:.85rem 1.1rem; border-top:1px solid #f0f2f5; font-size:.87rem; vertical-align:middle; }
+  .inv-table tr:hover td { background:#fafbfc; }
+  .inv-table tr.fila-critica td { background:#fef2f2; }
+  .inv-table tr.fila-critica:hover td { background:#fee2e2; }
+
+  .stock-badge { font-size:.78rem; font-weight:700; padding:4px 11px; border-radius:8px; white-space:nowrap; }
+  .stock-ok { background:#dcfce7; color:#16a34a; }
+  .stock-bajo { background:#fef3c7; color:#b45309; }
+  .stock-cero { background:#fee2e2; color:#dc2626; }
+
+  .empty-state { text-align:center; padding:3rem 1rem; color:#9aa3b2; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> › <a href="{% url 'admin_reportes' %}">Reportes</a> › Inventario / Stock bajo
+</div>
+
+<h5 class="fw-bold mb-3">Inventario / Stock bajo</h5>
+
+<div class="stat-row">
+  <div class="stat">
+    <div class="lbl">Productos activos</div>
+    <div class="val">{{ total_productos }}</div>
+  </div>
+  <div class="stat alerta">
+    <div class="lbl">Con stock bajo</div>
+    <div class="val">{{ total_stock_bajo }}</div>
+  </div>
+  <div class="stat alerta">
+    <div class="lbl">Sin stock (agotados)</div>
+    <div class="val">{{ total_sin_stock }}</div>
+  </div>
+  <div class="stat">
+    <div class="lbl">Valor de inventario (sin IVA)</div>
+    <div class="val">${{ valor_inventario_total|cop }}</div>
+  </div>
+</div>
+
+<form method="get" class="filter-card">
+  <input type="text" name="q" placeholder="Buscar por producto o SKU..." value="{{ q }}" style="flex:1 1 240px;">
+  <select name="categoria">
+    <option value="">Todas las categorías</option>
+    {% for c in categorias %}
+    <option value="{{ c.id }}" {% if categoria_filtro == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+    {% endfor %}
+  </select>
+  <label class="chk-bajo">
+    <input type="checkbox" name="solo_bajo" value="1" {% if solo_bajo %}checked{% endif %}>
+    Solo stock bajo
+  </label>
+  <button type="submit" class="btn btn-mp px-4"><i class="fas fa-filter me-1"></i>Filtrar</button>
+</form>
+
+<div class="inv-table">
+  {% if productos %}
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>SKU</th>
+        <th>Categoría</th>
+        <th>Stock actual</th>
+        <th>Stock mínimo</th>
+        <th>Estado</th>
+        <th>Valor en stock (sin IVA)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in productos %}
+      {% with p=item.obj %}
+      <tr class="{% if p.stock == 0 %}fila-critica{% endif %}">
+        <td>{{ p.nombre }}</td>
+        <td><code>{{ p.sku }}</code></td>
+        <td>{{ p.categoria.nombre|default:"—" }}</td>
+        <td><strong>{{ p.stock }}</strong> uds.</td>
+        <td>{{ p.stock_minimo }} uds.</td>
+        <td>
+          {% if p.stock == 0 %}
+            <span class="stock-badge stock-cero"><i class="fas fa-circle-exclamation"></i> Agotado</span>
+          {% elif p.stock_bajo %}
+            <span class="stock-badge stock-bajo"><i class="fas fa-triangle-exclamation"></i> Stock bajo</span>
+          {% else %}
+            <span class="stock-badge stock-ok"><i class="fas fa-check"></i> OK</span>
+          {% endif %}
+        </td>
+        <td>${{ item.valor_stock|cop }}</td>
+      </tr>
+      {% endwith %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <i class="fas fa-box-open fa-2x mb-2"></i>
+    <p class="mb-0">No se encontraron productos con los filtros seleccionados.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

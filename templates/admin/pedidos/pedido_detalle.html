@@ -1,0 +1,177 @@
+{% extends "admin/base_admin.html" %}
+{% load cop_filters %}
+{% block titulo %}Pedido #{{ pedido.id }} — MOTOPART Admin{% endblock %}
+{% block topbar_titulo %}Detalle del Pedido{% endblock %}
+{% block nav_pedidos %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+  .breadcrumb-mp { font-size:.8rem; color:#9aa3b2; margin-bottom:1rem; }
+  .breadcrumb-mp a { color:#c0392b; text-decoration:none; }
+
+  .form-card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1.25rem; }
+  .form-card-header { padding:1rem 1.25rem; border-bottom:1px solid #f0f2f5; display:flex; align-items:center; gap:.6rem; }
+  .form-card-header h6 { margin:0; font-weight:700; color:#1a1a2e; font-size:.92rem; }
+
+  .estado-badge { display:inline-flex; align-items:center; gap:5px; font-size:.78rem; font-weight:700; padding:5px 13px; border-radius:9px; }
+  .badge-pendiente  { background:#fef3c7; color:#b45309; }
+  .badge-confirmado { background:#dbeafe; color:#1d4ed8; }
+  .badge-preparando { background:#ede9fe; color:#e4dd0d; }
+  .badge-enviado    { background:#cffafe; color:#0e7490; }
+  .badge-entregado  { background:#dcfce7; color:#16a34a; }
+  .badge-cancelado  { background:#fee2e2; color:#dc2626; }
+
+  .det-table { width:100%; border-collapse:collapse; }
+  .det-table th { font-size:.74rem; text-transform:uppercase; letter-spacing:.05em; color:#9aa3b2; padding:.7rem 1.25rem; text-align:left; font-weight:700; background:#f8f9fb; }
+  .det-table td { padding:.7rem 1.25rem; border-top:1px solid #f0f2f5; font-size:.87rem; vertical-align:middle; }
+  .det-table tfoot td { font-weight:700; border-top:2px solid #e6e8ec; }
+
+  .info-row { display:flex; justify-content:space-between; padding:.55rem 0; border-bottom:1px solid #f4f6f8; font-size:.87rem; }
+  .info-row:last-child { border-bottom:none; }
+  .info-row span:first-child { color:#9aa3b2; }
+  .info-row span:last-child { font-weight:600; color:#2e2d1a; text-align:right; }
+
+  .form-select, .btn-mp { border-radius:8px; font-size:.86rem; }
+</style>
+{% endblock %}
+
+{% block contenido %}
+
+<div class="breadcrumb-mp">
+  <a href="{% url 'admin_dashboard' %}">Dashboard</a> ›
+  <a href="{% url 'admin_pedidos' %}">Pedidos</a> › Pedido #{{ pedido.id }}
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h5 class="fw-bold mb-0">Pedido #{{ pedido.id }}</h5>
+  <span class="estado-badge badge-{{ pedido.estado }}">{{ pedido.get_estado_display }}</span>
+</div>
+
+<div class="row g-3">
+
+  <!-- IZQUIERDA: productos -->
+  <div class="col-lg-8">
+    <div class="form-card">
+      <div class="form-card-header">
+        <i class="fas fa-box" style="color:#c0392b"></i>
+        <h6>Productos del pedido</h6>
+      </div>
+      <table class="det-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>SKU</th>
+            <th>Cantidad</th>
+            <th>Precio Unit.</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in pedido.detalles.all %}
+          <tr>
+            <td>{{ d.nombre_producto }}</td>
+            <td class="text-muted">{{ d.sku_producto|default:"—" }}</td>
+            <td>{{ d.cantidad }}</td>
+            <td>${{ d.precio_unitario|cop }}</td>
+            <td><strong>${{ d.subtotal|cop }}</strong></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-3">Sin productos registrados</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" class="text-end text-muted">Subtotal (sin IVA)</td>
+            <td class="text-muted">${{ pedido.subtotal_sin_iva|cop }}</td>
+          </tr>
+          <tr>
+            <td colspan="4" class="text-end text-muted">IVA (19%)</td>
+            <td class="text-muted">${{ pedido.valor_iva|cop }}</td>
+          </tr>
+          <tr>
+            <td colspan="4" class="text-end"><strong>Total</strong></td>
+            <td><strong>${{ pedido.total|cop }}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {% if pedido.notas %}
+    <div class="form-card">
+      <div class="form-card-header">
+        <i class="fas fa-sticky-note" style="color:#c0392b"></i>
+        <h6>Notas del cliente</h6>
+      </div>
+      <div class="p-4" style="font-size:.87rem; color:#555;">{{ pedido.notas }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- DERECHA: cliente, envío, pago, estado -->
+  <div class="col-lg-4">
+
+    <div class="form-card">
+      <div class="form-card-header">
+        <i class="fas fa-user" style="color:#c0392b"></i>
+        <h6>Cliente</h6>
+      </div>
+      <div class="p-4">
+        <div class="info-row"><span>Nombre</span><span>{{ pedido.usuario.get_full_name|default:pedido.usuario.username }}</span></div>
+        <div class="info-row"><span>Email</span><span>{{ pedido.usuario.email|default:"—" }}</span></div>
+        <div class="info-row"><span>Fecha pedido</span><span>{{ pedido.fecha_pedido|date:"d/m/Y H:i" }}</span></div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-header">
+        <i class="fas fa-truck" style="color:#c0392b"></i>
+        <h6>Dirección de envío</h6>
+      </div>
+      <div class="p-4" style="font-size:.87rem; color:#555;">
+        {{ pedido.direccion_envio|default:"No especificada"|linebreaksbr }}
+      </div>
+    </div>
+
+    {% if pago %}
+    <div class="form-card">
+      <div class="form-card-header">
+        <i class="fas fa-credit-card" style="color:#c0392b"></i>
+        <h6>Pago</h6>
+      </div>
+      <div class="p-4">
+        <div class="info-row"><span>Método</span><span>{{ pago.get_metodo_display }}</span></div>
+        <div class="info-row"><span>Estado</span><span>{{ pago.get_estado_display }}</span></div>
+        {% if pago.referencia %}
+        <div class="info-row"><span>Referencia</span><span>{{ pago.referencia }}</span></div>
+        {% endif %}
+        {% if pago.comprobante %}
+        <a href="{{ pago.comprobante.url }}" target="_blank" class="btn btn-outline-secondary w-100 mt-2" style="font-size:.83rem;">
+          <i class="fas fa-receipt me-1"></i> Ver comprobante
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="form-card">
+      <div class="form-card-header">
+        <i class="fas fa-sync-alt" style="color:#c0392b"></i>
+        <h6>Cambiar estado</h6>
+      </div>
+      <form method="post" action="{% url 'admin_pedido_estado' pedido.pk %}" class="p-4">
+        {% csrf_token %}
+        <select name="estado" class="form-select mb-3">
+          {% for valor, etiqueta in estados %}
+          <option value="{{ valor }}" {% if pedido.estado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-mp w-100">
+          <i class="fas fa-check me-1"></i> Actualizar estado
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

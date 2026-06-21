@@ -1,0 +1,138 @@
+{% extends "tienda/base.html" %}
+{% load cop_filters %}
+{% block titulo %}Pedido #{{ pedido.pk }} — AUTOPART{% endblock %}
+
+{% block extra_css %}
+<style>
+.cp-wrap { max-width: 800px; margin: 0 auto; padding: 32px 24px 60px; }
+
+.cp-success { text-align: center; margin-bottom: 28px; }
+.cp-success-icon {
+  width: 80px; height: 80px; background: #dcfce7; color: #16a34a;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; font-size: 2rem;
+}
+.cp-success h1 { font-size: 1.4rem; font-weight: 800; color: #111; margin-bottom: 6px; }
+.cp-success p { color: #888; font-size: 0.9rem; }
+
+.cp-card { background: #fff; border: 1px solid var(--mp-gris-borde); border-radius: 14px; padding: 26px; margin-bottom: 20px; }
+.cp-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+.cp-card-header h2 { font-size: 1rem; font-weight: 700; color: #111; margin: 0; }
+
+.cp-badge { font-size: 0.75rem; font-weight: 700; padding: 5px 14px; border-radius: 20px; text-transform: uppercase; letter-spacing: .3px; }
+.cp-badge-pendiente { background: #fef3c7; color: #b45309; }
+.cp-badge-confirmado { background: #dbeafe; color: #1d4ed8; }
+.cp-badge-preparando { background: #e0e7ff; color: #4338ca; }
+.cp-badge-enviado { background: #cffafe; color: #0e7490; }
+.cp-badge-entregado { background: #dcfce7; color: #16a34a; }
+.cp-badge-cancelado { background: #fee2e2; color: #dc2626; }
+
+.cp-meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 4px; }
+.cp-meta-item .cp-meta-label { font-size: 0.74rem; color: #999; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; }
+.cp-meta-item .cp-meta-value { font-size: 0.92rem; font-weight: 700; color: #222; }
+
+.cp-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.cp-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; color: #999; letter-spacing: .3px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
+.cp-table td { padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+.cp-table td.cp-num { text-align: right; }
+.cp-table tfoot td { border-bottom: none; padding-top: 16px; font-weight: 800; font-size: 1.05rem; color: var(--mp-rojo); }
+
+.cp-direccion { font-size: 0.88rem; color: #444; line-height: 1.5; }
+.cp-direccion i { color: #999; margin-right: 8px; }
+
+.cp-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-cp { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; min-width: 180px; padding: 12px; border-radius: 10px; font-size: 0.88rem; font-weight: 700; text-decoration: none; transition: background .2s, border-color .2s; }
+.btn-cp-primary { background: var(--mp-rojo); color: #fff; border: none; }
+.btn-cp-primary:hover { background: var(--mp-rojo-hover); color: #fff; }
+.btn-cp-outline { background: #fff; border: 1px solid var(--mp-gris-borde); color: #555; }
+.btn-cp-outline:hover { border-color: var(--mp-rojo); color: var(--mp-rojo); }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="cp-wrap">
+  <div class="cp-success">
+    <div class="cp-success-icon"><i class="fas fa-check"></i></div>
+    <h1>¡Pedido confirmado!</h1>
+    <p>Tu pedido #{{ pedido.pk }} fue registrado correctamente.</p>
+  </div>
+
+  <div class="cp-card">
+    <div class="cp-card-header">
+      <h2>Pedido #{{ pedido.pk }}</h2>
+      <span class="cp-badge cp-badge-{{ pedido.estado }}">{{ pedido.get_estado_display }}</span>
+    </div>
+    <div class="cp-meta-grid">
+      <div class="cp-meta-item">
+        <div class="cp-meta-label">Fecha</div>
+        <div class="cp-meta-value">{{ pedido.fecha_pedido|date:"d/m/Y H:i" }}</div>
+      </div>
+      <div class="cp-meta-item">
+        <div class="cp-meta-label">Total</div>
+        <div class="cp-meta-value">${{ pedido.total|cop }}</div>
+      </div>
+      {% if pedido.pago %}
+      <div class="cp-meta-item">
+        <div class="cp-meta-label">Método de pago</div>
+        <div class="cp-meta-value">{{ pedido.pago.get_metodo_display }}</div>
+      </div>
+      <div class="cp-meta-item">
+        <div class="cp-meta-label">Estado del pago</div>
+        <div class="cp-meta-value">{{ pedido.pago.get_estado_display }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="cp-card">
+    <div class="cp-card-header"><h2><i class="fas fa-map-marker-alt" style="color:var(--mp-rojo)"></i> Dirección de envío</h2></div>
+    <p class="cp-direccion"><i class="fas fa-location-dot"></i>{{ pedido.direccion_envio }}</p>
+    {% if pedido.notas %}
+    <p class="cp-direccion" style="margin-top:8px"><i class="fas fa-sticky-note"></i>{{ pedido.notas }}</p>
+    {% endif %}
+  </div>
+
+  <div class="cp-card">
+    <div class="cp-card-header"><h2><i class="fas fa-box" style="color:var(--mp-rojo)"></i> Productos</h2></div>
+    <table class="cp-table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th class="cp-num">Cant.</th>
+          <th class="cp-num">Precio</th>
+          <th class="cp-num">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in pedido.detalles.all %}
+        <tr>
+          <td>{{ d.nombre_producto }}<br><span style="color:#999;font-size:.78rem">SKU: {{ d.sku_producto }}</span></td>
+          <td class="cp-num">{{ d.cantidad }}</td>
+          <td class="cp-num">${{ d.precio_unitario|cop }}</td>
+          <td class="cp-num">${{ d.subtotal|cop }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">Subtotal (sin IVA)</td>
+          <td class="cp-num">${{ pedido.subtotal_sin_iva|cop }}</td>
+        </tr>
+        <tr>
+          <td colspan="3">IVA (19%)</td>
+          <td class="cp-num">${{ pedido.valor_iva|cop }}</td>
+        </tr>
+        <tr>
+          <td colspan="3"><strong>Total</strong></td>
+          <td class="cp-num"><strong>${{ pedido.total|cop }}</strong></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="cp-actions">
+    <a href="{% url 'perfil' %}" class="btn-cp btn-cp-outline"><i class="fas fa-list"></i> Ver mis pedidos</a>
+    <a href="{% url 'catalogo' %}" class="btn-cp btn-cp-primary"><i class="fas fa-th-large"></i> Seguir comprando</a>
+  </div>
+</div>
+{% endblock %}
