@@ -45,7 +45,19 @@
   <a href="{% url 'admin_dashboard' %}">Dashboard</a> › <a href="{% url 'admin_reportes' %}">Reportes</a> › Inventario / Stock bajo
 </div>
 
-<h5 class="fw-bold mb-3">Inventario / Stock bajo</h5>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">Inventario / Stock bajo</h5>
+  <div class="d-flex gap-2">
+    <a href="{% url 'admin_reporte_inventario_excel' %}?q={{ q }}&categoria={{ categoria_filtro }}{% if solo_bajo %}&solo_bajo=1{% endif %}"
+       class="btn btn-sm btn-success d-flex align-items-center gap-1">
+      <i class="fas fa-file-excel"></i> Excel
+    </a>
+    <a href="{% url 'admin_reporte_inventario_pdf' %}?q={{ q }}&categoria={{ categoria_filtro }}{% if solo_bajo %}&solo_bajo=1{% endif %}"
+       class="btn btn-sm btn-danger d-flex align-items-center gap-1">
+      <i class="fas fa-file-pdf"></i> PDF
+    </a>
+  </div>
+</div>
 
 <div class="stat-row">
   <div class="stat">

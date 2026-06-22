@@ -92,16 +92,19 @@
         </td>
         <td>
           <div class="acciones">
-            <a href="{% url 'admin_proveedor_editar' p.pk %}" class="btn-icon btn-editar" title="Editar">
-              <i class="fas fa-pencil-alt"></i>
-            </a>
-            <a href="{% url 'admin_proveedor_toggle' p.pk %}" class="btn-icon btn-toggle" title="{% if p.activo %}Desactivar{% else %}Activar{% endif %}">
-              <i class="fas fa-power-off"></i>
-            </a>
-            <a href="{% url 'admin_proveedor_eliminar' p.pk %}" class="btn-icon btn-eliminar" title="Eliminar">
-              <i class="fas fa-trash"></i>
-            </a>
-          </div>
+  <a href="{% url 'admin_proveedor_editar' p.pk %}" class="btn-icon btn-editar" title="Editar">
+    <i class="fas fa-pencil-alt"></i>
+  </a>
+  <form method="post" action="{% url 'admin_proveedor_toggle' p.pk %}" style="display:inline">
+    {% csrf_token %}
+    <button type="submit" class="btn-icon btn-toggle" title="{% if p.activo %}Desactivar{% else %}Activar{% endif %}">
+      <i class="fas fa-power-off"></i>
+    </button>
+  </form>
+  <a href="{% url 'admin_proveedor_eliminar' p.pk %}" class="btn-icon btn-eliminar" title="Eliminar">
+    <i class="fas fa-trash"></i>
+  </a>
+</div>
         </td>
       </tr>
       {% endfor %}

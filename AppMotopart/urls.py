@@ -199,13 +199,43 @@ urlpatterns = [
         name="admin_reporte_ventas",
     ),
     path(
+        "panel/reportes/ventas/excel/",
+        views.admin_reporte_ventas_excel,
+        name="admin_reporte_ventas_excel",
+    ),
+    path(
+        "panel/reportes/ventas/pdf/",
+        views.admin_reporte_ventas_pdf,
+        name="admin_reporte_ventas_pdf",
+    ),
+    path(
         "panel/reportes/inventario/",
         views.admin_reporte_inventario,
         name="admin_reporte_inventario",
     ),
     path(
+        "panel/reportes/inventario/excel/",
+        views.admin_reporte_inventario_excel,
+        name="admin_reporte_inventario_excel",
+    ),
+    path(
+        "panel/reportes/inventario/pdf/",
+        views.admin_reporte_inventario_pdf,
+        name="admin_reporte_inventario_pdf",
+    ),
+    path(
         "panel/reportes/productos-vendidos/",
         views.admin_reporte_productos_vendidos,
         name="admin_reporte_productos_vendidos",
+    ),
+    path(
+        "panel/reportes/productos-vendidos/excel/",
+        views.admin_reporte_productos_vendidos_excel,
+        name="admin_reporte_productos_vendidos_excel",
+    ),
+    path(
+        "panel/reportes/productos-vendidos/pdf/",
+        views.admin_reporte_productos_vendidos_pdf,
+        name="admin_reporte_productos_vendidos_pdf",
     ),
 ]

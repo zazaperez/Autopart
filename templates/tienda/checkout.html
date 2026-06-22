@@ -6,14 +6,14 @@
 <style>
 .ck-wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 60px; }
 .ck-header { margin-bottom: 24px; }
-.ck-header h1 { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-.ck-header p { color: #888; font-size: 0.9rem; margin: 0; }
+.ck-header h1 { font-size: 1.5rem; font-weight: 800; color: #fefcfc; display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.ck-header p { color: #5cd757; font-size: 0.9rem; margin: 0; }
 
 .ck-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
 @media (max-width: 900px) { .ck-layout { grid-template-columns: 1fr; } }
 
 .ck-card { background: #fff; border: 1px solid var(--mp-gris-borde); border-radius: 14px; padding: 24px 26px; margin-bottom: 20px; }
-.ck-card h2 { font-size: 0.98rem; font-weight: 700; color: #111; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.ck-card h2 { font-size: 0.98rem; font-weight: 700; color: #0d0d0d; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .ck-card h2 i { color: var(--mp-rojo); }
 
 .ck-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -31,18 +31,18 @@
   font-family: inherit;
   background: #fff;
 }
-.ck-form-control:focus { border-color: var(--mp-rojo); box-shadow: 0 0 0 3px rgba(232,0,29,.08); }
-.ck-form-control:disabled { background: #f5f5f5; color: #aaa; cursor: not-allowed; }
+.ck-form-control:focus { border-color: var(--mp-rojo); box-shadow: 0 0 0 3px rgba(234, 227, 228, 0.08); }
+.ck-form-control:disabled { background: #f5f5f5; color: #060606; cursor: not-allowed; }
 textarea.ck-form-control { resize: vertical; min-height: 80px; }
 .ck-form-group { margin-bottom: 16px; }
-.ck-form-hint { font-size: 0.78rem; color: #999; margin-top: 5px; }
+.ck-form-hint { font-size: 0.78rem; color: #111111; margin-top: 5px; }
 
 /* ══ RESUMEN ══ */
 .ck-summary { background: #fff; border: 1px solid var(--mp-gris-borde); border-radius: 14px; padding: 24px; position: sticky; top: 90px; }
 .ck-summary h2 { font-size: 0.95rem; font-weight: 700; color: #111; margin-bottom: 16px; }
-.ck-summary-item { display: flex; justify-content: space-between; gap: 10px; font-size: 0.83rem; color: #555; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+.ck-summary-item { display: flex; justify-content: space-between; gap: 10px; font-size: 0.83rem; color: #232222; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
 .ck-summary-item .ck-si-name { color: #333; }
-.ck-summary-item .ck-si-qty { color: #999; }
+.ck-summary-item .ck-si-qty { color: #171616; }
 .ck-summary-row { display: flex; justify-content: space-between; font-size: 0.88rem; color: #555; margin-top: 14px; }
 .ck-summary-row.ck-total { font-size: 1.1rem; font-weight: 800; color: #111; border-top: 1px solid var(--mp-gris-borde); padding-top: 14px; margin-top: 12px; }
 .ck-summary-row.ck-total span:last-child { color: var(--mp-rojo); }
@@ -86,11 +86,11 @@ textarea.ck-form-control { resize: vertical; min-height: 80px; }
           <div class="ck-form-row">
             <div class="ck-form-group">
               <label class="ck-form-label">Documento de identidad</label>
-              <input type="text" name="documento" class="ck-form-control" placeholder="Ej: 1012345678" value="{{ perfil.documento|default:'' }}" required>
+              <input type="text" name="documento" class="ck-form-control" placeholder="Ej: 1012345678" value="{{ form_documento|default:perfil.documento|default:'' }}" required>
             </div>
             <div class="ck-form-group">
               <label class="ck-form-label">Teléfono de contacto</label>
-              <input type="text" name="telefono" class="ck-form-control" placeholder="Ej: 3001234567" value="{{ perfil.telefono|default:'' }}" required>
+              <input type="text" name="telefono" class="ck-form-control" placeholder="Ej: 3001234567" value="{{ form_telefono|default:perfil.telefono|default:'' }}" required>
             </div>
           </div>
 
@@ -100,7 +100,7 @@ textarea.ck-form-control { resize: vertical; min-height: 80px; }
               <select name="departamento" id="ckDepartamento" class="ck-form-control" required onchange="ckCargarCiudades()">
                 <option value="">Selecciona un departamento</option>
                 {% for dep in departamentos %}
-                <option value="{{ dep }}" {% if perfil.departamento == dep %}selected{% endif %}>{{ dep }}</option>
+                <option value="{{ dep }}" {% if form_departamento == dep or perfil.departamento == dep %}selected{% endif %}>{{ dep }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -114,7 +114,7 @@ textarea.ck-form-control { resize: vertical; min-height: 80px; }
 
           <div class="ck-form-group">
             <label class="ck-form-label">Dirección</label>
-            <input type="text" name="direccion" class="ck-form-control" placeholder="Calle, número, barrio..." value="{{ perfil.direccion|default:'' }}" required>
+            <input type="text" name="direccion" class="ck-form-control" placeholder="Calle, número, barrio..." value="{{ form_direccion|default:perfil.direccion|default:'' }}" required>
             <div class="ck-form-hint">Esta dirección se guardará en tu perfil para tu próxima compra.</div>
           </div>
 

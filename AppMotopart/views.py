@@ -1,8 +1,5 @@
-# ============================================================
-# AUTH
-# ============================================================
-
 import json
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -11,6 +8,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .colombia_data import DEPARTAMENTOS_CIUDADES
@@ -29,6 +27,23 @@ from .models import (
 )
 
 
+# ── DECORADOR ADMIN ──
+def admin_required(view_func):
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect("login")
+        try:
+            if not request.user.perfil.es_admin():
+                messages.error(request, "No tienes permisos de administrador.")
+                return redirect("catalogo")
+        except Exception:
+            return redirect("catalogo")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
 def vista_registro(request):
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
@@ -40,13 +55,10 @@ def vista_registro(request):
 
         if password1 != password2:
             messages.error(request, "Las contraseñas no coinciden.")
-
         elif User.objects.filter(username=username).exists():
             messages.error(request, "El usuario ya existe.")
-
         elif User.objects.filter(email=email).exists():
             messages.error(request, "El correo ya está registrado.")
-
         else:
             user = User.objects.create_user(
                 username=username,
@@ -55,19 +67,13 @@ def vista_registro(request):
                 first_name=first_name,
                 last_name=last_name,
             )
-
-            # Perfil creado por signal
             perfil = user.perfil
             perfil.telefono = request.POST.get("telefono", "").strip()
             perfil.direccion = request.POST.get("direccion", "").strip()
             perfil.ciudad = request.POST.get("ciudad", "").strip()
             perfil.save()
-
-            # Iniciar sesión automáticamente
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-
             messages.success(request, f"¡Bienvenido, {user.first_name or username}!")
-
             return redirect("catalogo")
 
     return render(request, "tienda/registro.html")
@@ -83,13 +89,16 @@ def vista_login(request):
 
         try:
             usuario = User.objects.get(email__iexact=email)
-
             user = authenticate(request, username=usuario.username, password=password)
-
             if user:
                 login(request, user)
-                return redirect("catalogo")
-
+                next_url = (
+                    request.POST.get("next") or request.GET.get("next") or "catalogo"
+                )
+                return redirect(next_url)
+        except User.MultipleObjectsReturned:
+            messages.error(request, "Correo o contraseña incorrectos.")
+            return render(request, "tienda/login.html")
         except User.DoesNotExist:
             pass
 
@@ -113,7 +122,6 @@ def catalogo(request):
         "categoria", "marca"
     )
 
-    # Filtros
     categoria_id = request.GET.get("categoria")
     busqueda = request.GET.get("q", "").strip()
     orden = request.GET.get("orden", "")
@@ -157,19 +165,17 @@ def detalle_producto(request, pk):
     return render(request, "tienda/detalle.html", context)
 
 
-from .models import Carrito, DetallePedido, ItemCarrito, Pago, Pedido, Producto
+# ============================================================
+# CARRITO
+# ============================================================
 
 
 def _get_carrito(usuario):
-    """Obtiene o crea el carrito del usuario logueado."""
     carrito, _ = Carrito.objects.get_or_create(usuario=usuario)
     return carrito
 
 
 def _carrito_count(request):
-    """Devuelve la cantidad de items en el carrito (para el badge del navbar).
-    Úsala en un context_processor si quieres que carrito_count esté
-    disponible en TODOS los templates automáticamente."""
     if request.user.is_authenticated:
         carrito, _ = Carrito.objects.get_or_create(usuario=request.user)
         return carrito.cantidad_items()
@@ -182,14 +188,7 @@ def ver_carrito(request):
     items = carrito.items.select_related(
         "producto", "producto__categoria", "producto__marca"
     ).all()
-    return render(
-        request,
-        "tienda/carrito.html",
-        {
-            "carrito": carrito,
-            "items": items,
-        },
-    )
+    return render(request, "tienda/carrito.html", {"carrito": carrito, "items": items})
 
 
 @login_required
@@ -210,7 +209,6 @@ def agregar_carrito(request, producto_id):
     if not creado:
         item.cantidad += cantidad
 
-    # No permitir agregar más de lo que hay en stock
     if item.cantidad > producto.stock:
         item.cantidad = producto.stock
         messages.warning(
@@ -234,8 +232,6 @@ def agregar_carrito(request, producto_id):
 @login_required
 @require_POST
 def actualizar_carrito(request, item_id):
-    """Actualiza la cantidad de un item del carrito desde un input numérico.
-    Si cantidad <= 0, el item se elimina."""
     item = get_object_or_404(ItemCarrito, pk=item_id, carrito__usuario=request.user)
 
     try:
@@ -279,9 +275,9 @@ def vaciar_carrito(request):
     return redirect("carrito")
 
 
-# ════════════════════════════════════════════════════
-# CHECKOUT — crea Pedido + DetallePedido + Pago
-# ════════════════════════════════════════════════════
+# ============================================================
+# CHECKOUT
+# ============================================================
 
 
 @login_required
@@ -293,8 +289,6 @@ def checkout(request):
         messages.warning(request, "Tu carrito está vacío.")
         return redirect("carrito")
 
-    # Validación de stock ANTES de mostrar el formulario,
-    # por si algo cambió desde que se agregó al carrito.
     sin_stock = [i for i in items if i.cantidad > i.producto.stock]
     if sin_stock:
         nombres = ", ".join(i.producto.nombre for i in sin_stock)
@@ -314,6 +308,23 @@ def checkout(request):
         direccion = request.POST.get("direccion", "").strip()
         notas = request.POST.get("notas", "").strip()
 
+        departamentos = sorted(DEPARTAMENTOS_CIUDADES.keys())
+        ctx_error = {
+            "carrito": carrito,
+            "items": items,
+            "perfil": perfil,
+            "departamentos": departamentos,
+            "departamentos_ciudades_json": json.dumps(
+                DEPARTAMENTOS_CIUDADES, ensure_ascii=False
+            ),
+            "form_documento": documento,
+            "form_telefono": telefono,
+            "form_departamento": departamento,
+            "form_ciudad": ciudad,
+            "form_direccion": direccion,
+            "form_notas": notas,
+        }
+
         if (
             not documento
             or not telefono
@@ -324,10 +335,21 @@ def checkout(request):
             messages.error(
                 request, "Completa todos los campos del formulario de envío."
             )
-            return redirect("checkout")
+            return render(request, "tienda/checkout.html", ctx_error)
 
-        # Guarda/actualiza estos datos en el Perfil para la próxima compra
-        perfil.documento = documento
+        if documento and perfil.documento != documento:
+            if (
+                Perfil.objects.filter(documento=documento)
+                .exclude(usuario=request.user)
+                .exists()
+            ):
+                messages.error(
+                    request,
+                    "El número de documento ya está registrado por otro usuario.",
+                )
+                return render(request, "tienda/checkout.html", ctx_error)
+            perfil.documento = documento
+
         perfil.telefono = telefono
         perfil.departamento = departamento
         perfil.ciudad = ciudad
@@ -338,7 +360,6 @@ def checkout(request):
 
         try:
             with transaction.atomic():
-                # Revalidar stock dentro de la transacción (evita condiciones de carrera)
                 pedido = Pedido.objects.create(
                     usuario=request.user,
                     estado=Pedido.PENDIENTE,
@@ -368,8 +389,6 @@ def checkout(request):
 
                 pedido.calcular_total()
 
-                # Se crea el Pago automáticamente, sin preguntarle al usuario.
-                # Por defecto queda como "contra entrega", pendiente de confirmar.
                 Pago.objects.create(
                     pedido=pedido,
                     metodo=Pago.CONTRA_ENTREGA,
@@ -386,7 +405,6 @@ def checkout(request):
         return redirect("comprobante", pk=pedido.pk)
 
     departamentos = sorted(DEPARTAMENTOS_CIUDADES.keys())
-
     return render(
         request,
         "tienda/checkout.html",
@@ -412,12 +430,9 @@ def comprobante(request, pk):
     return render(request, "tienda/comprobante.html", {"pedido": pedido})
 
 
-# ════════════════════════════════════════════════════
-# PERFIL DEL CLIENTE
-# ════════════════════════════════════════════════════
-
-
-from .models import Pedido, Perfil
+# ============================================================
+# PERFIL
+# ============================================================
 
 
 @login_required
@@ -430,10 +445,23 @@ def perfil(request):
         accion = request.POST.get("accion", "perfil")
 
         if accion == "perfil":
+            nuevo_email = request.POST.get("email", "").strip()
+            if (
+                nuevo_email
+                and User.objects.filter(email=nuevo_email)
+                .exclude(pk=request.user.pk)
+                .exists()
+            ):
+                messages.error(
+                    request, "Ese correo ya está registrado por otro usuario."
+                )
+                return redirect(f"{request.path}?s=perfil")
+
             request.user.first_name = request.POST.get("first_name", "").strip()
             request.user.last_name = request.POST.get("last_name", "").strip()
-            request.user.email = request.POST.get("email", "").strip()
+            request.user.email = nuevo_email
             request.user.save()
+
             perfil_obj.telefono = request.POST.get("telefono", "").strip()
             perfil_obj.direccion = request.POST.get("direccion", "").strip()
             perfil_obj.departamento = request.POST.get("departamento", "").strip()
@@ -488,40 +516,14 @@ def perfil(request):
 # PANEL ADMIN
 # ============================================================
 
-from functools import wraps
-
-from django.utils import timezone
-
-from .models import Proveedor
-
-
-def admin_required(view_func):
-    """Decorador: solo admins pueden acceder."""
-
-    @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect("login")
-        try:
-            if not request.user.perfil.es_admin():
-                messages.error(request, "No tienes permisos de administrador.")
-                return redirect("catalogo")
-        except Exception:
-            return redirect("catalogo")
-        return view_func(request, *args, **kwargs)
-
-    return wrapper
-
 
 @admin_required
 def admin_dashboard(request):
-
     from django.db.models import Count, Sum
 
     hoy = timezone.now()
     inicio_hoy = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # Ventas y pedidos de hoy
     ventas_hoy = (
         Pedido.objects.filter(
             fecha_pedido__gte=inicio_hoy,
@@ -531,15 +533,12 @@ def admin_dashboard(request):
     )
 
     pedidos_hoy = Pedido.objects.filter(fecha_pedido__gte=inicio_hoy).count()
-
-    # Contadores generales
     pedidos_pendientes = Pedido.objects.filter(estado="pendiente").count()
     pedidos_enviados = Pedido.objects.filter(estado="enviado").count()
     pedidos_entregados = Pedido.objects.filter(estado="entregado").count()
     total_productos = Producto.objects.filter(activo=True).count()
     total_clientes = User.objects.filter(perfil__rol="C").count()
 
-    # Ventas últimos 12 meses
     import calendar
 
     meses_labels = []
@@ -573,15 +572,11 @@ def admin_dashboard(request):
         meses_labels.append(nombres_meses[mes_num - 1])
         ventas_mensuales.append(float(total))
 
-    # Top productos
-    from .models import DetallePedido
-
     top_raw = (
         DetallePedido.objects.values("nombre_producto")
         .annotate(total_vendido=Sum("cantidad"))
         .order_by("-total_vendido")[:5]
     )
-
     max_v = top_raw[0]["total_vendido"] if top_raw else 1
     top_productos = [
         {
@@ -592,12 +587,10 @@ def admin_dashboard(request):
         for p in top_raw
     ]
 
-    # Pedidos recientes
     pedidos_recientes = Pedido.objects.select_related("usuario").order_by(
         "-fecha_pedido"
     )[:5]
 
-    # Últimos clientes
     colores = ["#c0392b", "#2980b9", "#27ae60", "#8e44ad", "#f39c12"]
     ultimos_clientes_qs = User.objects.filter(perfil__rol="C").order_by("-date_joined")[
         :5
@@ -682,14 +675,9 @@ def admin_productos(request):
 
 
 def _validar_datos_producto(request):
-    """Valida precio/stock/stock_minimo del POST antes de tocar la BD.
-    Devuelve (datos_limpios, error) — si error no es None, no debe guardarse nada.
-    """
     from decimal import Decimal, InvalidOperation
 
-    # Límite real de la columna: DecimalField(max_digits=12, decimal_places=2)
     PRECIO_MAXIMO = Decimal("9999999999.99")
-
     precio_raw = request.POST.get("precio", "0").strip().replace(",", "")
     try:
         precio = Decimal(precio_raw)
@@ -699,9 +687,9 @@ def _validar_datos_producto(request):
     if precio < 0:
         return None, "El precio no puede ser negativo."
     if precio > PRECIO_MAXIMO:
-        return None, (
-            f"El precio ingresado es demasiado grande. "
-            f"El máximo permitido es ${PRECIO_MAXIMO:,.2f}."
+        return (
+            None,
+            f"El precio ingresado es demasiado grande. El máximo permitido es ${PRECIO_MAXIMO:,.2f}.",
         )
 
     try:
@@ -753,14 +741,13 @@ def admin_producto_crear(request):
         p.save()
         messages.success(request, "Producto creado correctamente.")
         return redirect("admin_productos")
+
     return render(
         request,
         "admin/productos/producto_crear.html",
         {
             "categorias": Categoria.objects.filter(activo=True),
-            "marcas": __import__(
-                "AppMotopart.models", fromlist=["MarcaProducto"]
-            ).MarcaProducto.objects.all(),
+            "marcas": MarcaProducto.objects.all(),
         },
     )
 
@@ -800,6 +787,7 @@ def admin_producto_editar(request, pk):
         p.save()
         messages.success(request, "Producto actualizado correctamente.")
         return redirect("admin_productos")
+
     return render(
         request,
         "admin/productos/producto_editar.html",
@@ -838,7 +826,6 @@ def admin_categorias(request):
     categorias = Categoria.objects.annotate(num_productos=Count("productos")).order_by(
         "nombre"
     )
-
     return render(
         request, "admin/categorias/categorias.html", {"categorias": categorias}
     )
@@ -943,7 +930,6 @@ def admin_pedido_detalle(request, pk):
         Pedido.objects.select_related("usuario").prefetch_related("detalles"), pk=pk
     )
     pago = Pago.objects.filter(pedido=pedido).first()
-
     return render(
         request,
         "admin/pedidos/pedido_detalle.html",
@@ -992,8 +978,11 @@ def admin_inventario(request):
             | Q(referencia__icontains=q)
         )
 
-    productos_stock_bajo = Producto.objects.filter(activo=True).order_by("stock")
-    productos_stock_bajo = [p for p in productos_stock_bajo if p.stock_bajo()]
+    productos_stock_bajo = [
+        p
+        for p in Producto.objects.filter(activo=True).order_by("stock")
+        if p.stock_bajo()
+    ]
 
     return render(
         request,
@@ -1010,6 +999,12 @@ def admin_inventario(request):
 
 @admin_required
 def admin_movimiento_crear(request):
+    ctx = {
+        "productos": Producto.objects.filter(activo=True).order_by("nombre"),
+        "proveedores": Proveedor.objects.filter(activo=True).order_by("nombre"),
+        "tipos": Movimiento.TIPOS,
+    }
+
     if request.method == "POST":
         producto_id = request.POST.get("producto")
         tipo = request.POST.get("tipo")
@@ -1030,54 +1025,49 @@ def admin_movimiento_crear(request):
             messages.error(
                 request, "Revisa el tipo de movimiento y la cantidad ingresada."
             )
+            return render(request, "admin/inventario/movimiento_crear.html", ctx)
+
+        # Validar stock suficiente para salidas
+        if tipo not in (Movimiento.ENTRADA, Movimiento.COMPRA):
+            if abs(cantidad) > producto.stock:
+                messages.error(
+                    request,
+                    f"Stock insuficiente. Solo hay {producto.stock} unidades de {producto.nombre}.",
+                )
+                return render(request, "admin/inventario/movimiento_crear.html", ctx)
+            cantidad_final = -abs(cantidad)
         else:
-            if tipo in (Movimiento.ENTRADA, Movimiento.COMPRA):
-                cantidad_final = abs(cantidad)
-            else:
-                cantidad_final = -abs(cantidad)
+            cantidad_final = abs(cantidad)
 
-            Movimiento.objects.create(
-                producto=producto,
-                tipo=tipo,
-                cantidad=cantidad_final,
-                proveedor_id=proveedor_id,
-                referencia=referencia,
-                notas=notas,
-                usuario=request.user,
-            )
-            messages.success(
-                request,
-                f"Movimiento registrado: {producto.nombre} → stock actualizado.",
-            )
-            return redirect("admin_inventario")
+        Movimiento.objects.create(
+            producto=producto,
+            tipo=tipo,
+            cantidad=cantidad_final,
+            proveedor_id=proveedor_id,
+            referencia=referencia,
+            notas=notas,
+            usuario=request.user,
+        )
+        messages.success(
+            request, f"Movimiento registrado: {producto.nombre} → stock actualizado."
+        )
+        return redirect("admin_inventario")
 
-    return render(
-        request,
-        "admin/inventario/movimiento_crear.html",
-        {
-            "productos": Producto.objects.filter(activo=True).order_by("nombre"),
-            "proveedores": Proveedor.objects.filter(activo=True).order_by("nombre"),
-            "tipos": Movimiento.TIPOS,
-        },
-    )
+    return render(request, "admin/inventario/movimiento_crear.html", ctx)
 
 
 # ── Proveedores ──
 @admin_required
 def admin_proveedores(request):
-
     proveedores = Proveedor.objects.all()
-
-    context = {"proveedores": proveedores}
-
-    return render(request, "admin/proveedores/proveedores.html", context)
+    return render(
+        request, "admin/proveedores/proveedores.html", {"proveedores": proveedores}
+    )
 
 
 @admin_required
 def admin_proveedor_crear(request):
-
     if request.method == "POST":
-
         Proveedor.objects.create(
             nombre=request.POST.get("nombre", "").strip(),
             contacto=request.POST.get("contacto", "").strip(),
@@ -1088,107 +1078,54 @@ def admin_proveedor_crear(request):
             nit=request.POST.get("nit", "").strip(),
             activo="activo" in request.POST,
         )
-
         messages.success(request, "Proveedor creado correctamente.")
         return redirect("admin_proveedores")
-
     return render(request, "admin/proveedores/proveedor_crear.html", {})
 
 
 @admin_required
-def admin_proveedor_eliminar(request, pk):
-
-    proveedor = get_object_or_404(Proveedor, pk=pk)
-
-    if request.method == "POST":
-        proveedor.delete()
-        messages.success(request, "Proveedor eliminado correctamente.")
-        return redirect("admin_proveedores")
-
-    return render(
-        request, "admin/proveedores/proveedor_eliminar.html", {"proveedor": proveedor}
-    )
-
-
-@admin_required
 def admin_proveedor_editar(request, pk):
-
     proveedor = get_object_or_404(Proveedor, pk=pk)
-
     if request.method == "POST":
-
-        proveedor.nombre = request.POST.get("nombre", "")
-        proveedor.contacto = request.POST.get("contacto", "")
-        proveedor.telefono = request.POST.get("telefono", "")
-        proveedor.correo = request.POST.get("correo", "")
-        proveedor.direccion = request.POST.get("direccion", "")
-        proveedor.ciudad = request.POST.get("ciudad", "")
-        proveedor.nit = request.POST.get("nit", "")
+        proveedor.nombre = request.POST.get("nombre", "").strip()
+        proveedor.contacto = request.POST.get("contacto", "").strip()
+        proveedor.telefono = request.POST.get("telefono", "").strip()
+        proveedor.correo = request.POST.get("correo", "").strip()
+        proveedor.direccion = request.POST.get("direccion", "").strip()
+        proveedor.ciudad = request.POST.get("ciudad", "").strip()
+        proveedor.nit = request.POST.get("nit", "").strip()
         proveedor.activo = "activo" in request.POST
-
         proveedor.save()
-
         messages.success(request, "Proveedor actualizado correctamente.")
         return redirect("admin_proveedores")
-
     return render(
         request, "admin/proveedores/proveedor_editar.html", {"proveedor": proveedor}
     )
 
 
 @admin_required
-def admin_proveedor_toggle(request, pk):
-    return redirect("admin_proveedores")
-
-
-# ── Usuarios ──
-@admin_required
-def admin_usuarios(request):
-    from django.core.paginator import Paginator
-
-    qs = User.objects.filter(perfil__rol="C").select_related("perfil")
-
-    q = request.GET.get("q", "").strip()
-    if q:
-        qs = qs.filter(
-            Q(username__icontains=q)
-            | Q(email__icontains=q)
-            | Q(first_name__icontains=q)
-            | Q(last_name__icontains=q)
-        )
-
-    estado = request.GET.get("estado", "")
-    if estado == "activo":
-        qs = qs.filter(is_active=True)
-    elif estado == "inactivo":
-        qs = qs.filter(is_active=False)
-
-    qs = qs.order_by("-date_joined")
-    paginator = Paginator(qs, 15)
-    pagina = paginator.get_page(request.GET.get("page"))
-
-    colores = ["#c0392b", "#2980b9", "#27ae60", "#8e44ad", "#f39c12", "#16a085"]
-    clientes = []
-    for i, u in enumerate(pagina):
-        clientes.append(
-            {
-                "usuario": u,
-                "perfil": getattr(u, "perfil", None),
-                "nombre": u.get_full_name() or u.username,
-                "inicial": u.username[0].upper(),
-                "color": colores[i % len(colores)],
-                "num_pedidos": Pedido.objects.filter(usuario=u).count(),
-            }
-        )
-
+def admin_proveedor_eliminar(request, pk):
+    proveedor = get_object_or_404(Proveedor, pk=pk)
+    if request.method == "POST":
+        proveedor.delete()
+        messages.success(request, "Proveedor eliminado correctamente.")
+        return redirect("admin_proveedores")
     return render(
-        request,
-        "admin/usuarios/usuarios.html",
-        {
-            "clientes": clientes,
-            "total": qs.count(),
-        },
+        request, "admin/proveedores/proveedor_eliminar.html", {"proveedor": proveedor}
     )
+
+
+@admin_required
+def admin_proveedor_toggle(request, pk):
+    proveedor = get_object_or_404(Proveedor, pk=pk)
+    if request.method == "POST":
+        proveedor.activo = not proveedor.activo
+        proveedor.save()
+        messages.success(
+            request,
+            f'Proveedor {"activado" if proveedor.activo else "desactivado"} correctamente.',
+        )
+    return redirect("admin_proveedores")
 
 
 # ── Usuarios ──
@@ -1244,40 +1181,98 @@ def admin_usuarios(request):
 
 @admin_required
 def admin_usuario_crear(request):
-
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
+        documento = request.POST.get("documento", "").strip()
+
+        if not username:
+            messages.error(request, "El nombre de usuario es obligatorio.")
+            return render(
+                request,
+                "admin/usuarios/usuario_crear.html",
+                {"form_data": request.POST},
+            )
+
         if User.objects.filter(username=username).exists():
-            messages.error(request, "Ese nombre de usuario ya existe.")
-            return render(request, "admin/usuarios/usuario_crear.html", {})
+            messages.error(request, f'El usuario "{username}" ya existe.')
+            return render(
+                request,
+                "admin/usuarios/usuario_crear.html",
+                {"form_data": request.POST},
+            )
+
+        if email and User.objects.filter(email=email).exists():
+            messages.error(request, f'El correo "{email}" ya está registrado.')
+            return render(
+                request,
+                "admin/usuarios/usuario_crear.html",
+                {"form_data": request.POST},
+            )
+
+        if not password:
+            messages.error(request, "La contraseña es obligatoria.")
+            return render(
+                request,
+                "admin/usuarios/usuario_crear.html",
+                {"form_data": request.POST},
+            )
+
+        # ── VALIDACIÓN DOCUMENTO DUPLICADO ──
+        if documento and Perfil.objects.filter(documento=documento).exists():
+            messages.error(request, f'El documento "{documento}" ya está registrado.')
+            return render(
+                request,
+                "admin/usuarios/usuario_crear.html",
+                {"form_data": request.POST},
+            )
 
         u = User.objects.create_user(
             username=username,
-            email=request.POST.get("email", "").strip(),
-            password=request.POST.get("password"),
+            email=email,
+            password=password,
             first_name=request.POST.get("first_name", "").strip(),
             last_name=request.POST.get("last_name", "").strip(),
             is_active="activo" in request.POST,
         )
         Perfil.objects.filter(usuario=u).update(
             rol=request.POST.get("rol", "C"),
-            documento=request.POST.get("documento", "").strip() or None,
+            documento=documento or None,
             telefono=request.POST.get("telefono", "").strip(),
             direccion=request.POST.get("direccion", "").strip(),
             ciudad=request.POST.get("ciudad", "").strip(),
         )
-        messages.success(request, "Cliente creado correctamente.")
+        messages.success(request, f'Cliente "{username}" creado correctamente.')
         return redirect("admin_usuarios")
+
     return render(request, "admin/usuarios/usuario_crear.html", {})
 
 
 @admin_required
 def admin_usuario_editar(request, pk):
-
     cliente = get_object_or_404(User, pk=pk)
     if request.method == "POST":
-        cliente.username = request.POST.get("username", "").strip()
-        cliente.email = request.POST.get("email", "").strip()
+        nuevo_username = request.POST.get("username", "").strip()
+        nuevo_email = request.POST.get("email", "").strip()
+
+        if User.objects.filter(username=nuevo_username).exclude(pk=pk).exists():
+            messages.error(request, f'El usuario "{nuevo_username}" ya existe.')
+            return render(
+                request, "admin/usuarios/usuario_editar.html", {"cliente": cliente}
+            )
+
+        if (
+            nuevo_email
+            and User.objects.filter(email=nuevo_email).exclude(pk=pk).exists()
+        ):
+            messages.error(request, f'El correo "{nuevo_email}" ya está registrado.')
+            return render(
+                request, "admin/usuarios/usuario_editar.html", {"cliente": cliente}
+            )
+
+        cliente.username = nuevo_username
+        cliente.email = nuevo_email
         cliente.first_name = request.POST.get("first_name", "").strip()
         cliente.last_name = request.POST.get("last_name", "").strip()
         cliente.is_active = "activo" in request.POST
@@ -1295,12 +1290,12 @@ def admin_usuario_editar(request, pk):
         )
         messages.success(request, "Cliente actualizado correctamente.")
         return redirect("admin_usuarios")
+
     return render(request, "admin/usuarios/usuario_editar.html", {"cliente": cliente})
 
 
 @admin_required
 def admin_usuario_toggle(request, pk):
-
     cliente = get_object_or_404(User, pk=pk)
     cliente.is_active = not cliente.is_active
     cliente.save()
@@ -1312,7 +1307,6 @@ def admin_usuario_toggle(request, pk):
 
 @admin_required
 def admin_usuario_eliminar(request, pk):
-
     cliente = get_object_or_404(User, pk=pk)
     num_pedidos = Pedido.objects.filter(usuario=cliente).count()
     if request.method == "POST":
@@ -1322,24 +1316,28 @@ def admin_usuario_eliminar(request, pk):
     return render(
         request,
         "admin/usuarios/usuario_eliminar.html",
-        {"cliente": cliente, "num_pedidos": num_pedidos},
+        {
+            "cliente": cliente,
+            "num_pedidos": num_pedidos,
+        },
     )
 
 
 @admin_required
 def admin_usuario_detalle(request, pk):
-
     cliente = get_object_or_404(User, pk=pk)
     pedidos = Pedido.objects.filter(usuario=cliente).order_by("-fecha_pedido")
     return render(
         request,
         "admin/usuarios/usuario_detalle.html",
-        {"cliente": cliente, "pedidos": pedidos},
+        {
+            "cliente": cliente,
+            "pedidos": pedidos,
+        },
     )
 
 
 # ── Reportes ──
-
 ESTADOS_VENTA = ["confirmado", "preparando", "enviado", "entregado"]
 
 
@@ -1356,7 +1354,6 @@ def _datos_reporte_ventas(request):
 
     hoy = timezone.now()
 
-    # Rango de fechas: por defecto, mes actual
     desde_raw = request.GET.get("desde", "")
     hasta_raw = request.GET.get("hasta", "")
 
@@ -1390,7 +1387,6 @@ def _datos_reporte_ventas(request):
     subtotal_sin_iva = sum(p.subtotal_sin_iva() for p in pedidos)
     iva_total = sum(p.valor_iva() for p in pedidos)
 
-    # Comparación con periodo anterior (misma duración, inmediatamente antes)
     duracion = hasta - desde
     desde_anterior = desde - duracion - timezone.timedelta(seconds=1)
     hasta_anterior = desde - timezone.timedelta(seconds=1)
@@ -1402,14 +1398,12 @@ def _datos_reporte_ventas(request):
         ).aggregate(t=Sum("total"))["t"]
         or 0
     )
-    if total_anterior:
-        variacion_pct = round(
-            float((total_ventas - total_anterior) / total_anterior * 100), 1
-        )
-    else:
-        variacion_pct = None
+    variacion_pct = (
+        round(float((total_ventas - total_anterior) / total_anterior * 100), 1)
+        if total_anterior
+        else None
+    )
 
-    # Ventas agrupadas por día (para el gráfico)
     por_dia_qs = (
         pedidos.annotate(dia=TruncDate("fecha_pedido"))
         .values("dia")
@@ -1421,7 +1415,6 @@ def _datos_reporte_ventas(request):
     ]
     dias_totales = [float(d["total"] or 0) for d in por_dia_qs if d["dia"] is not None]
 
-    # Ventas por método de pago
     por_metodo = (
         Pago.objects.filter(pedido__in=pedidos, estado="aprobado")
         .values("metodo")
@@ -1438,8 +1431,6 @@ def _datos_reporte_ventas(request):
         for m in por_metodo
     ]
 
-    pedidos_detalle = list(pedidos.order_by("-fecha_pedido"))
-
     return {
         "desde": desde.strftime("%Y-%m-%d"),
         "hasta": hasta.strftime("%Y-%m-%d"),
@@ -1454,7 +1445,7 @@ def _datos_reporte_ventas(request):
         "dias_labels": dias_labels,
         "dias_totales": dias_totales,
         "por_metodo": por_metodo,
-        "pedidos_detalle": pedidos_detalle,
+        "pedidos_detalle": list(pedidos.order_by("-fecha_pedido")),
     }
 
 
@@ -1473,16 +1464,14 @@ def admin_reporte_ventas(request):
 def admin_reporte_ventas_excel(request):
     from . import exportes
 
-    datos = _datos_reporte_ventas(request)
-    return exportes.exportar_ventas_excel(datos)
+    return exportes.exportar_ventas_excel(_datos_reporte_ventas(request))
 
 
 @admin_required
 def admin_reporte_ventas_pdf(request):
     from . import exportes
 
-    datos = _datos_reporte_ventas(request)
-    return exportes.exportar_ventas_pdf(datos)
+    return exportes.exportar_ventas_pdf(_datos_reporte_ventas(request))
 
 
 def _datos_reporte_inventario(request):
@@ -1505,22 +1494,15 @@ def _datos_reporte_inventario(request):
         productos = productos.filter(stock__lte=F("stock_minimo"))
 
     productos = productos.order_by("stock")
-
-    productos_lista = []
-    for p in productos:
-        productos_lista.append(
-            {
-                "obj": p,
-                "valor_stock": p.precio_sin_iva() * p.stock,
-            }
-        )
+    productos_lista = [
+        {"obj": p, "valor_stock": p.precio_sin_iva() * p.stock} for p in productos
+    ]
 
     valor_inventario_total = sum(
         p.precio_sin_iva() * p.stock for p in Producto.objects.filter(activo=True)
     )
     valor_inventario_filtrado = sum(item["valor_stock"] for item in productos_lista)
     unidades_totales = sum(item["obj"].stock for item in productos_lista)
-
     productos_stock_bajo = [
         p for p in Producto.objects.filter(activo=True) if p.stock_bajo()
     ]
@@ -1549,24 +1531,25 @@ def _datos_reporte_inventario(request):
 
 @admin_required
 def admin_reporte_inventario(request):
-    context = _datos_reporte_inventario(request)
-    return render(request, "admin/reportes/reporte_inventario.html", context)
+    return render(
+        request,
+        "admin/reportes/reporte_inventario.html",
+        _datos_reporte_inventario(request),
+    )
 
 
 @admin_required
 def admin_reporte_inventario_excel(request):
     from . import exportes
 
-    datos = _datos_reporte_inventario(request)
-    return exportes.exportar_inventario_excel(datos)
+    return exportes.exportar_inventario_excel(_datos_reporte_inventario(request))
 
 
 @admin_required
 def admin_reporte_inventario_pdf(request):
     from . import exportes
 
-    datos = _datos_reporte_inventario(request)
-    return exportes.exportar_inventario_pdf(datos)
+    return exportes.exportar_inventario_pdf(_datos_reporte_inventario(request))
 
 
 def _datos_reporte_productos_vendidos(request):
@@ -1616,15 +1599,13 @@ def _datos_reporte_productos_vendidos(request):
     )
 
     max_unidades = ranking[0]["unidades_vendidas"] if ranking else 1
-
     ranking_list = []
     for idx, r in enumerate(ranking[:50], start=1):
-        producto_obj = None
-        stock_actual = None
-        if r["producto_id"]:
-            producto_obj = Producto.objects.filter(pk=r["producto_id"]).first()
-            if producto_obj:
-                stock_actual = producto_obj.stock
+        producto_obj = (
+            Producto.objects.filter(pk=r["producto_id"]).first()
+            if r["producto_id"]
+            else None
+        )
         ranking_list.append(
             {
                 "puesto": idx,
@@ -1634,12 +1615,11 @@ def _datos_reporte_productos_vendidos(request):
                 "ingresos": r["ingresos"] or 0,
                 "num_pedidos": r["num_pedidos"],
                 "porcentaje": round(r["unidades_vendidas"] / max_unidades * 100),
-                "stock_actual": stock_actual,
+                "stock_actual": producto_obj.stock if producto_obj else None,
                 "producto": producto_obj,
             }
         )
 
-    # Productos sin ventas en el periodo (no se mueven)
     productos_vendidos_ids = detalles.values_list("producto_id", flat=True).distinct()
     sin_movimiento = Producto.objects.filter(activo=True).exclude(
         id__in=productos_vendidos_ids
@@ -1684,13 +1664,15 @@ def admin_reporte_productos_vendidos(request):
 def admin_reporte_productos_vendidos_excel(request):
     from . import exportes
 
-    datos = _datos_reporte_productos_vendidos(request)
-    return exportes.exportar_productos_vendidos_excel(datos)
+    return exportes.exportar_productos_vendidos_excel(
+        _datos_reporte_productos_vendidos(request)
+    )
 
 
 @admin_required
 def admin_reporte_productos_vendidos_pdf(request):
     from . import exportes
 
-    datos = _datos_reporte_productos_vendidos(request)
-    return exportes.exportar_productos_vendidos_pdf(datos)
+    return exportes.exportar_productos_vendidos_pdf(
+        _datos_reporte_productos_vendidos(request)
+    )

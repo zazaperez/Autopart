@@ -3,59 +3,159 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block titulo %}Panel Admin — MOTOPART{% endblock %}</title>
+  <title>{% block titulo %}Panel Admin — AUTOPART{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <style>
     :root {
-      --mp-rojo: #c0392b;
-      --mp-oscuro: #1a1a2e;
-      --mp-sidebar: #16213e;
-      --mp-sidebar-hover: #0f3460;
+      --mp-rojo: #e8001d;
+      --mp-oscuro: #0a0f1e;
+      --mp-sidebar: #0d1b3e;
+      --mp-sidebar-hover: #1a2d5a;
       --mp-gris: #f4f6f8;
     }
     body { background: var(--mp-gris); font-family: 'Segoe UI', sans-serif; margin: 0; }
 
+    /* ══ SIDEBAR ══ */
     #sidebar {
-      width: 250px; min-height: 100vh; background: var(--mp-sidebar);
-      position: fixed; top: 0; left: 0;
-      display: flex; flex-direction: column; z-index: 1000; transition: width .25s;
+      width: 250px;
+      min-height: 100vh;
+      position: fixed;
+      top: 0; left: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      transition: width .25s;
       overflow-y: auto;
-    }
-    #sidebar .sidebar-brand {
-      padding: 1.25rem 1.5rem; background: var(--mp-oscuro); color: #fff;
-      font-weight: 700; font-size: 1.1rem; text-decoration: none;
-      display: flex; align-items: center; gap: .6rem;
-      border-bottom: 2px solid var(--mp-rojo); flex-shrink: 0;
-    }
-    #sidebar .sidebar-brand span { color: var(--mp-rojo); }
-    #sidebar .nav-label {
-      font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
-      color: #6c7a9c; padding: .9rem 1.5rem .3rem;
-    }
-    #sidebar .nav-link {
-      color: #a8b2d8; padding: .6rem 1.5rem;
-      display: flex; align-items: center; gap: .75rem; font-size: .88rem;
-      transition: background .2s, color .2s;
-      border-left: 3px solid transparent; text-decoration: none;
-    }
-    #sidebar .nav-link:hover, #sidebar .nav-link.active {
-      background: var(--mp-sidebar-hover); color: #fff; border-left-color: var(--mp-rojo);
-    }
-    #sidebar .nav-link i { width: 18px; text-align: center; }
-    #sidebar .sidebar-footer {
-      margin-top: auto; padding: 1rem 1.5rem;
-      border-top: 1px solid #1e2d50; font-size: .8rem; color: #6c7a9c; flex-shrink: 0;
+      overflow-x: hidden;
+      background:
+        /* Degradado rojo sutil en la parte superior */
+        radial-gradient(ellipse 160% 40% at 50% 0%, rgba(5, 5, 213, 0.18) 0%, transparent 70%),
+        /* Degradado oscuro base */
+        linear-gradient(175deg, #0f1f45 0%, #0a1530 40%, #06101f 100%);
     }
 
+    /* Patrón de fondo: rueda dentada grande + detalles automotriz */
+    #sidebar::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='700' viewBox='0 0 260 700'%3E%3C!-- RUEDA GRANDE centro-derecha --%3E%3Ccircle cx='200' cy='200' r='110' fill='none' stroke='%23162d60' stroke-width='18'/%3E%3Ccircle cx='200' cy='200' r='72' fill='none' stroke='%23162d60' stroke-width='10'/%3E%3Ccircle cx='200' cy='200' r='22' fill='none' stroke='%23162d60' stroke-width='8'/%3E%3Cline x1='200' y1='128' x2='200' y2='90' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3Cline x1='200' y1='272' x2='200' y2='310' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3Cline x1='128' y1='200' x2='90' y2='200' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3Cline x1='272' y1='200' x2='310' y2='200' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3Cline x1='149' y1='149' x2='121' y2='121' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3Cline x1='251' y1='149' x2='279' y2='121' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3Cline x1='149' y1='251' x2='121' y2='279' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3Cline x1='251' y1='251' x2='279' y2='279' stroke='%23162d60' stroke-width='12' stroke-linecap='round'/%3E%3C!-- LLAVE INGLESA parte inferior --%3E%3Cg transform='translate(30,480) rotate(-30)'%3E%3Cellipse cx='0' cy='0' rx='22' ry='14' fill='none' stroke='%23162d60' stroke-width='8'/%3E%3Crect x='-6' y='14' width='12' height='70' fill='none' stroke='%23162d60' stroke-width='8' stroke-linejoin='round'/%3E%3Cellipse cx='0' cy='84' rx='14' ry='10' fill='none' stroke='%23162d60' stroke-width='8'/%3E%3C/g%3E%3C!-- PERNO / TORNILLO pequeño arriba-izquierda --%3E%3Cg transform='translate(28,60)'%3E%3Ccircle cx='0' cy='0' r='20' fill='none' stroke='%23162d60' stroke-width='7'/%3E%3Ccircle cx='0' cy='0' r='9' fill='none' stroke='%23162d60' stroke-width='5'/%3E%3Cline x1='0' y1='-20' x2='0' y2='-32' stroke='%23162d60' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='0' y1='20' x2='0' y2='32' stroke='%23162d60' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='-20' y1='0' x2='-32' y2='0' stroke='%23162d60' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='20' y1='0' x2='32' y2='0' stroke='%23162d60' stroke-width='7' stroke-linecap='round'/%3E%3C/g%3E%3C!-- PISTÓN pequeño esquina derecha abajo --%3E%3Cg transform='translate(200,580)'%3E%3Crect x='-14' y='-40' width='28' height='55' rx='4' fill='none' stroke='%23162d60' stroke-width='7'/%3E%3Crect x='-20' y='-48' width='40' height='12' rx='3' fill='none' stroke='%23162d60' stroke-width='6'/%3E%3Cline x1='-14' y1='15' x2='-20' y2='35' stroke='%23162d60' stroke-width='6' stroke-linecap='round'/%3E%3Cline x1='14' y1='15' x2='20' y2='35' stroke='%23162d60' stroke-width='6' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E");
+      background-size: 260px 700px;
+      background-position: center center;
+      background-repeat: no-repeat;
+      opacity: 1;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Brillo sutil en el borde derecho del sidebar */
+    #sidebar::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 1px;
+      height: 100%;
+      background: linear-gradient(to bottom, transparent, rgba(232, 0, 27, 0.812), transparent);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    #sidebar > * { position: relative; z-index: 1; }
+
+    .mp-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+    .mp-logo-icon {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 3px solid var(--mp-rojo);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; flex-shrink: 0;
+    }
+    .mp-logo-icon i.fa-cog {
+      position: absolute; inset: -3px; color: var(--mp-rojo); font-size: 1.7rem;
+      display: flex; align-items: center; justify-content: center; opacity: 0.9;
+    }
+    .mp-logo-icon span {
+      position: relative; z-index: 2; color: #fff;
+      font-weight: 900; font-size: 1rem; font-style: italic;
+    }
+    .mp-logo-text { line-height: 1.1; }
+    .mp-logo-text .brand-name { font-size: 1.2rem; font-weight: 900; color: #fff; letter-spacing: .5px; }
+    .mp-logo-text .brand-name span { color: var(--mp-rojo); }
+    .mp-logo-text .brand-tagline { font-size: 0.55rem; color: #8899bb; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+
+    a.sidebar-brand {
+      display: flex; align-items: center; gap: .75rem;
+      padding: 1.1rem 1.25rem; text-decoration: none;
+      border-bottom: 1px solid rgba(247, 11, 39, 0.988);
+      background: rgba(0,0,0,0.15);
+    }
+
+    /* Nav labels */
+    #sidebar .nav-label {
+      font-size: .63rem; text-transform: uppercase; letter-spacing: .12em;
+      color: #7a9acc; padding: .9rem 1.5rem .3rem; font-weight: 800;
+    }
+
+    /* Nav links */
+    #sidebar .nav-link {
+      color: #c8d8f0; padding: .5rem 1rem .5rem 1.1rem;
+      display: flex; align-items: center; gap: .85rem;
+      font-size: .88rem;
+      transition: background .2s, color .2s, border-color .2s;
+      border-left: 3px solid transparent;
+      text-decoration: none; font-weight: 500;
+    }
+    #sidebar .nav-link:hover {
+      background: rgba(255,255,255,0.06);
+      color: #fff; border-left-color: var(--mp-rojo);
+    }
+    #sidebar .nav-link.active {
+      background: rgba(232,0,29,0.12);
+      color: #fff; border-left-color: var(--mp-rojo);
+    }
+
+    /* ══ ICONOS — más grandes y visibles ══ */
+    #sidebar .nav-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background .2s, border-color .2s;
+    }
+    #sidebar .nav-link:hover .nav-icon,
+    #sidebar .nav-link.active .nav-icon {
+      background: rgba(232,0,29,0.2);
+      border-color: rgba(232,0,29,0.4);
+    }
+    #sidebar .nav-icon svg { width: 26px; height: 26px; display: block; }
+    #sidebar .nav-icon i { font-size: 1.15rem; color: #c8d8f0; }
+    #sidebar .nav-link:hover .nav-icon i,
+    #sidebar .nav-link.active .nav-icon i { color: #e8001d; }
+
+    /* Footer sidebar */
+    #sidebar .sidebar-footer {
+      margin-top: auto; padding: 1rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      font-size: .8rem; color: #6c7a9c; flex-shrink: 0;
+      background: rgba(0,0,0,0.25);
+    }
+    #sidebar .sidebar-footer .user-avatar {
+      width: 34px; height: 34px; background: var(--mp-rojo); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .85rem; color: #fff; font-weight: 700;
+    }
+
+    /* ══ TOPBAR ══ */
     #topbar {
-      margin-left: 250px; background: #fff; padding: .75rem 1.5rem;
+      margin-left: 250px; background: #fff;
+      padding: .75rem 1.5rem;
       display: flex; align-items: center; justify-content: space-between;
-      box-shadow: 0 1px 4px rgba(0,0,0,.08); position: sticky; top: 0; z-index: 900;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      position: sticky; top: 0; z-index: 900;
     }
     #topbar .topbar-title { font-weight: 600; font-size: 1rem; color: var(--mp-oscuro); }
-    #topbar .topbar-user { display: flex; align-items: center; gap: .5rem; font-size: .9rem; color: #555; }
 
+    /* ══ CONTENIDO ══ */
     #main-content {
       margin-left: 250px; padding: 1.25rem 1.5rem;
       min-height: calc(100vh - 57px);
@@ -66,17 +166,18 @@
     .card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,.07); border-radius: 12px; }
     .card-header {
       background: #fff; border-bottom: 1px solid #eee;
-      border-radius: 12px 12px 0 0 !important; font-weight: 600; padding: 1rem 1.25rem;
+      border-radius: 12px 12px 0 0 !important;
+      font-weight: 600; padding: 1rem 1.25rem;
     }
     .btn-mp { background: var(--mp-rojo); color: #fff; border: none; }
-    .btn-mp:hover { background: #a93226; color: #fff; }
+    .btn-mp:hover { background: #c0001a; color: #fff; }
     .table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: #888; border-top: none; }
     .table td { vertical-align: middle; font-size: .88rem; }
 
     .badge-pendiente  { background: #f39c12 !important; }
-    .badge-confirmado { background: #2980b9 !important; }
-    .badge-preparando { background: #8e44ad !important; }
-    .badge-enviado    { background: #16a085 !important; }
+    .badge-confirmado { background: #6b21a8 !important; }
+    .badge-preparando { background: #92400e !important; }
+    .badge-enviado    { background: #0e7490 !important; }
     .badge-entregado  { background: #27ae60 !important; }
     .badge-cancelado  { background: #c0392b !important; }
 
@@ -91,59 +192,90 @@
 <body>
 
 <nav id="sidebar">
-  <a class="sidebar-brand" href="{% url 'admin_dashboard' %}">
-    <i class="fas fa-car-side"></i> MOTO<span>PART</span>
+  <!-- Logo -->
+  <a class="sidebar-brand mp-logo" href="{% url 'admin_dashboard' %}">
+    <div class="mp-logo-icon">
+      <i class="fas fa-cog"></i>
+      <span>A</span>
+    </div>
+    <div class="mp-logo-text">
+      <div class="brand-name">UTO<span>PART</span></div>
+      <div class="brand-tagline">Calidad que te mueve</div>
+    </div>
   </a>
 
   <span class="nav-label">Principal</span>
   <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'admin_dashboard' %}">
-    <i class="fas fa-chart-pie"></i> Dashboard
+    <span class="nav-icon"><i class="fas fa-chart-pie"></i></span>
+    Dashboard
   </a>
 
   <span class="nav-label">Catálogo</span>
   <a class="nav-link {% block nav_productos %}{% endblock %}" href="{% url 'admin_productos' %}">
-    <i class="fas fa-boxes"></i> Productos
+    <span class="nav-icon"><i class="fas fa-cube"></i></span>
+    Productos
   </a>
   <a class="nav-link {% block nav_categorias %}{% endblock %}" href="{% url 'admin_categorias' %}">
-    <i class="fas fa-tags"></i> Categorías
+    <span class="nav-icon"><i class="fas fa-tag"></i></span>
+    Categorías
   </a>
 
   <span class="nav-label">Ventas</span>
   <a class="nav-link {% block nav_pedidos %}{% endblock %}" href="{% url 'admin_pedidos' %}">
-    <i class="fas fa-receipt"></i> Pedidos
+    <span class="nav-icon"><i class="fas fa-clipboard-check"></i></span>
+    Pedidos
   </a>
 
   <span class="nav-label">Almacén</span>
   <a class="nav-link {% block nav_inventario %}{% endblock %}" href="{% url 'admin_inventario' %}">
-    <i class="fas fa-warehouse"></i> Inventario
+    <span class="nav-icon"><i class="fas fa-warehouse"></i></span>
+    Inventario
   </a>
   <a class="nav-link {% block nav_proveedores %}{% endblock %}" href="{% url 'admin_proveedores' %}">
-    <i class="fas fa-truck"></i> Proveedores
+    <span class="nav-icon"><i class="fas fa-truck"></i></span>
+    Proveedores
   </a>
 
   <span class="nav-label">Usuarios</span>
   <a class="nav-link {% block nav_usuarios %}{% endblock %}" href="{% url 'admin_usuarios' %}">
-    <i class="fas fa-users"></i> Clientes
+    <span class="nav-icon"><i class="fas fa-users"></i></span>
+    Clientes
   </a>
 
   <span class="nav-label">Reportes</span>
   <a class="nav-link {% block nav_reportes %}{% endblock %}" href="{% url 'admin_reportes' %}">
-    <i class="fas fa-chart-bar"></i> Reportes
+    <span class="nav-icon"><i class="fas fa-chart-bar"></i></span>
+    Reportes
   </a>
 
+  <!-- Footer -->
   <div class="sidebar-footer">
-    <div><i class="fas fa-user-shield me-2"></i>{{ user.get_full_name|default:user.username }}</div>
-    <div class="mt-1"><i class="fas fa-circle text-success me-1" style="font-size:.5rem"></i>Administrador</div>
+    <div class="d-flex align-items-center gap-2">
+      <div class="user-avatar">
+        {{ user.get_full_name|default:user.username|slice:":1"|upper }}
+      </div>
+      <div>
+        <div style="color:#ccd6f6;font-size:.82rem;font-weight:600">
+          {{ user.get_full_name|default:user.username }}
+        </div>
+        <div style="font-size:.72rem;color:#4a6a9e">
+          <i class="fas fa-circle text-success me-1" style="font-size:.45rem"></i>Administrador
+        </div>
+      </div>
+    </div>
   </div>
 </nav>
 
+<!-- Topbar -->
 <div id="topbar">
   <div class="d-flex align-items-center gap-3">
-    <button class="btn btn-sm btn-light d-md-none" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+    <button class="btn btn-sm btn-light d-md-none" id="sidebarToggle">
+      <i class="fas fa-bars"></i>
+    </button>
     <span class="topbar-title">{% block topbar_titulo %}Panel de administración{% endblock %}</span>
   </div>
-  <div class="topbar-user">
-    <a href="{% url 'catalogo' %}" class="btn btn-sm btn-outline-secondary me-2" target="_blank">
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'catalogo' %}" class="btn btn-sm btn-outline-secondary" target="_blank">
       <i class="fas fa-store me-1"></i>Ver tienda
     </a>
     <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger">
@@ -152,6 +284,7 @@
   </div>
 </div>
 
+<!-- Mensajes -->
 {% if messages %}
 <div style="margin-left:250px;padding:.75rem 1.5rem 0;max-width:calc(100vw - 250px);">
   {% for m in messages %}
@@ -162,6 +295,7 @@
 </div>
 {% endif %}
 
+<!-- Contenido -->
 <div id="main-content">
   {% block contenido %}{% endblock %}
 </div>
