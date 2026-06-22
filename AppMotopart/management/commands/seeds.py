@@ -5,8 +5,10 @@
 #   python manage.py seeds --flush   → borra todo y recarga limpio
 
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth.models import User
+from django.core.files import File
 from django.core.management.base import BaseCommand
 
 from AppMotopart.models import (
@@ -18,6 +20,12 @@ from AppMotopart.models import (
     Producto,
     Proveedor,
     Vehiculo,
+)
+
+# Carpeta con las imágenes placeholder generadas para el seed
+# (AppMotopart/seed_assets/productos/<SKU>.png) — sí se suben a git.
+SEED_ASSETS_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "seed_assets" / "productos"
 )
 
 CATEGORIAS = [
@@ -402,6 +410,7 @@ class Command(BaseCommand):
     def _productos(self, cats, marcas):
         prods = {}
         creados = 0
+        con_imagen = 0
         for nombre, sku, cat_n, marca_n, desc, precio, stock, stock_min in PRODUCTOS:
             p, creado = Producto.objects.get_or_create(
                 sku=sku,
@@ -419,7 +428,16 @@ class Command(BaseCommand):
             prods[sku] = p
             if creado:
                 creados += 1
-        self.stdout.write(f"  ✅ {len(prods)} productos ({creados} nuevos)")
+            if not p.imagen:
+                ruta_imagen = SEED_ASSETS_DIR / f"{sku}.png"
+                if ruta_imagen.exists():
+                    with open(ruta_imagen, "rb") as f:
+                        p.imagen.save(f"{sku}.png", File(f), save=True)
+                    con_imagen += 1
+        self.stdout.write(
+            f"  ✅ {len(prods)} productos ({creados} nuevos, "
+            f"{con_imagen} con imagen asignada)"
+        )
         return prods
 
     def _compatibilidades(self, prods, veh):
