@@ -208,3 +208,11 @@ LOGOUT_REDIRECT_URL = "catalogo"  # a dónde va tras cerrar sesión
 # Otros
 # ──────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ──────────────────────────────────────────────
+# Correo — Brevo
+# ──────────────────────────────────────────────
+EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='tu@correo.com')
+PASSWORD_RESET_TIMEOUT = 3600

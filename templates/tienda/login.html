@@ -6,6 +6,11 @@
   <div class="col-md-5 col-lg-4">
     <div class="card p-4 mt-4">
       <h4 class="fw-bold text-center mb-4">Iniciar sesión</h4>
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.GET.next }}">
@@ -19,6 +24,9 @@
         </div>
         <button class="btn btn-mp w-100 py-2">Entrar</button>
       </form>
+      <div class="text-center mt-2">
+        <a href="{% url 'password_reset' %}" class="small text-muted">¿Olvidaste tu contraseña?</a>
+      </div>
       <p class="text-center mt-3 mb-0 small">
         ¿No tienes cuenta? <a href="{% url 'registro' %}">Regístrate</a>
       </p>

@@ -11,6 +11,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+import requests as http_requests
+from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+
 from .colombia_data import DEPARTAMENTOS_CIUDADES
 from .models import (
     Carrito,
@@ -1676,3 +1682,100 @@ def admin_reporte_productos_vendidos_pdf(request):
     return exportes.exportar_productos_vendidos_pdf(
         _datos_reporte_productos_vendidos(request)
     )
+
+# ============================================================
+# RECUPERACIÓN DE CONTRASEÑA — Brevo API
+# ============================================================
+
+
+def enviar_correo_brevo(destinatario, asunto, contenido_html):
+    """Envía un correo usando la API HTTP de Brevo."""
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "api-key": settings.BREVO_API_KEY,
+        "Content-Type": "application/json",
+    }
+    data = {
+        "sender": {"name": "Motopart", "email": settings.DEFAULT_FROM_EMAIL},
+        "to": [{"email": destinatario}],
+        "subject": asunto,
+        "htmlContent": contenido_html,
+    }
+    try:
+        response = http_requests.post(url, json=data, headers=headers, timeout=10)
+        return response.status_code == 201
+    except Exception:
+        return False
+
+
+def password_reset_request(request):
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip()
+        try:
+            usuario = User.objects.get(email__iexact=email)
+            uid = urlsafe_base64_encode(force_bytes(usuario.pk))
+            token = default_token_generator.make_token(usuario)
+            dominio = request.get_host()
+            protocolo = "https" if request.is_secure() else "http"
+            enlace = f"{protocolo}://{dominio}/password-reset/{uid}/{token}/"
+
+            html = f"""
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:auto;padding:30px;">
+                <h2 style="color:#144272;">🔑 Restablecer contraseña</h2>
+                <p>Hola <strong>{usuario.first_name or usuario.username}</strong>,</p>
+                <p>Recibimos una solicitud para restablecer tu contraseña en <strong>Motopart</strong>.</p>
+                <p style="text-align:center;margin:30px 0;">
+                    <a href="{enlace}"
+                       style="background:#144272;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">
+                        Restablecer contraseña
+                    </a>
+                </p>
+                <p style="color:#7f8c8d;font-size:13px;">Este enlace expira en 1 hora. Si no solicitaste este cambio, ignora este correo.</p>
+                <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+                <p style="color:#aaa;font-size:12px;">— Equipo Motopart</p>
+            </div>
+            """
+            enviar_correo_brevo(usuario.email, "Restablecer contraseña — Motopart", html)
+        except User.DoesNotExist:
+            pass  # No revelar si el correo existe o no
+
+        # Siempre redirigir al done para no revelar si el correo existe
+        return redirect("password_reset_done")
+
+    return render(request, "registration/password_reset_form.html")
+
+
+def password_reset_confirm_view(request, uidb64, token):
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        usuario = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError):
+        usuario = None
+
+    token_valido = usuario is not None and default_token_generator.check_token(usuario, token)
+
+    if request.method == "POST" and token_valido:
+        password1 = request.POST.get("new_password1", "")
+        password2 = request.POST.get("new_password2", "")
+
+        if password1 != password2:
+            messages.error(request, "Las contraseñas no coinciden.")
+            return render(request, "registration/password_reset_confirm.html", {"validlink": True})
+
+        if len(password1) < 8:
+            messages.error(request, "La contraseña debe tener al menos 8 caracteres.")
+            return render(request, "registration/password_reset_confirm.html", {"validlink": True})
+
+        usuario.set_password(password1)
+        usuario.save()
+        return redirect("password_reset_complete")
+
+    return render(request, "registration/password_reset_confirm.html", {"validlink": token_valido})
+
+
+def password_reset_done_view(request):
+    return render(request, "registration/password_reset_done.html")
+
+
+def password_reset_complete_view(request):
+    return render(request, "registration/password_reset_complete.html")
