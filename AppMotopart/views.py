@@ -424,27 +424,54 @@ from .models import Pedido, Perfil
 def perfil(request):
     perfil_obj, _ = Perfil.objects.get_or_create(usuario=request.user)
     pedidos = Pedido.objects.filter(usuario=request.user).order_by("-fecha_pedido")
+    seccion = request.GET.get("s", "resumen")
 
     if request.method == "POST":
-        # Datos del User
-        request.user.first_name = request.POST.get("first_name", "").strip()
-        request.user.last_name = request.POST.get("last_name", "").strip()
-        request.user.email = request.POST.get("email", "").strip()
-        request.user.save()
+        accion = request.POST.get("accion", "perfil")
 
-        # Datos del Perfil
-        perfil_obj.telefono = request.POST.get("telefono", "").strip()
-        perfil_obj.direccion = request.POST.get("direccion", "").strip()
-        perfil_obj.departamento = request.POST.get("departamento", "").strip()
-        perfil_obj.ciudad = request.POST.get("ciudad", "").strip()
+        if accion == "perfil":
+            request.user.first_name = request.POST.get("first_name", "").strip()
+            request.user.last_name = request.POST.get("last_name", "").strip()
+            request.user.email = request.POST.get("email", "").strip()
+            request.user.save()
+            perfil_obj.telefono = request.POST.get("telefono", "").strip()
+            perfil_obj.direccion = request.POST.get("direccion", "").strip()
+            perfil_obj.departamento = request.POST.get("departamento", "").strip()
+            perfil_obj.ciudad = request.POST.get("ciudad", "").strip()
+            if request.FILES.get("foto"):
+                perfil_obj.foto = request.FILES["foto"]
+            perfil_obj.save()
+            messages.success(request, "Tu información fue actualizada correctamente.")
+            return redirect(f"{request.path}?s=perfil")
 
-        if request.FILES.get("foto"):
-            perfil_obj.foto = request.FILES["foto"]
+        elif accion == "direccion":
+            perfil_obj.direccion = request.POST.get("direccion", "").strip()
+            perfil_obj.departamento = request.POST.get("departamento", "").strip()
+            perfil_obj.ciudad = request.POST.get("ciudad", "").strip()
+            perfil_obj.save()
+            messages.success(request, "Dirección actualizada correctamente.")
+            return redirect(f"{request.path}?s=direcciones")
 
-        perfil_obj.save()
+        elif accion == "password":
+            from django.contrib.auth import update_session_auth_hash
 
-        messages.success(request, "Tu información fue actualizada correctamente.")
-        return redirect("perfil")
+            old_pass = request.POST.get("old_password", "")
+            new_pass = request.POST.get("new_password1", "")
+            new_pass2 = request.POST.get("new_password2", "")
+            if not request.user.check_password(old_pass):
+                messages.error(request, "La contraseña actual es incorrecta.")
+            elif new_pass != new_pass2:
+                messages.error(request, "Las contraseñas nuevas no coinciden.")
+            elif len(new_pass) < 8:
+                messages.error(
+                    request, "La contraseña debe tener al menos 8 caracteres."
+                )
+            else:
+                request.user.set_password(new_pass)
+                request.user.save()
+                update_session_auth_hash(request, request.user)
+                messages.success(request, "Contraseña actualizada correctamente.")
+            return redirect(f"{request.path}?s=seguridad")
 
     return render(
         request,
@@ -452,6 +479,7 @@ def perfil(request):
         {
             "perfil": perfil_obj,
             "pedidos": pedidos,
+            "seccion": seccion,
         },
     )
 
@@ -1320,11 +1348,11 @@ def admin_reportes(request):
     return render(request, "admin/reportes/reportes.html", {})
 
 
-@admin_required
-def admin_reporte_ventas(request):
+def _datos_reporte_ventas(request):
     from datetime import datetime
 
     from django.db.models import Count, Sum
+    from django.db.models.functions import TruncDate
 
     hoy = timezone.now()
 
@@ -1382,8 +1410,6 @@ def admin_reporte_ventas(request):
         variacion_pct = None
 
     # Ventas agrupadas por día (para el gráfico)
-    from django.db.models.functions import TruncDate
-
     por_dia_qs = (
         pedidos.annotate(dia=TruncDate("fecha_pedido"))
         .values("dia")
@@ -1412,27 +1438,54 @@ def admin_reporte_ventas(request):
         for m in por_metodo
     ]
 
-    pedidos_detalle = pedidos.order_by("-fecha_pedido")
+    pedidos_detalle = list(pedidos.order_by("-fecha_pedido"))
 
-    context = {
+    return {
         "desde": desde.strftime("%Y-%m-%d"),
         "hasta": hasta.strftime("%Y-%m-%d"),
+        "desde_dt": desde,
+        "hasta_dt": hasta,
         "total_ventas": total_ventas,
         "num_pedidos": num_pedidos,
         "ticket_promedio": ticket_promedio,
         "subtotal_sin_iva": subtotal_sin_iva,
         "iva_total": iva_total,
         "variacion_pct": variacion_pct,
-        "dias_labels": json.dumps(dias_labels),
-        "dias_totales": json.dumps(dias_totales),
+        "dias_labels": dias_labels,
+        "dias_totales": dias_totales,
         "por_metodo": por_metodo,
         "pedidos_detalle": pedidos_detalle,
+    }
+
+
+@admin_required
+def admin_reporte_ventas(request):
+    datos = _datos_reporte_ventas(request)
+    context = {
+        **datos,
+        "dias_labels": json.dumps(datos["dias_labels"]),
+        "dias_totales": json.dumps(datos["dias_totales"]),
     }
     return render(request, "admin/reportes/reporte_ventas.html", context)
 
 
 @admin_required
-def admin_reporte_inventario(request):
+def admin_reporte_ventas_excel(request):
+    from . import exportes
+
+    datos = _datos_reporte_ventas(request)
+    return exportes.exportar_ventas_excel(datos)
+
+
+@admin_required
+def admin_reporte_ventas_pdf(request):
+    from . import exportes
+
+    datos = _datos_reporte_ventas(request)
+    return exportes.exportar_ventas_pdf(datos)
+
+
+def _datos_reporte_inventario(request):
     from django.db.models import F
 
     productos = Producto.objects.filter(activo=True).select_related(
@@ -1465,18 +1518,24 @@ def admin_reporte_inventario(request):
     valor_inventario_total = sum(
         p.precio_sin_iva() * p.stock for p in Producto.objects.filter(activo=True)
     )
-    valor_inventario_filtrado = sum(p.precio_sin_iva() * p.stock for p in productos)
-    unidades_totales = sum(p.stock for p in productos)
+    valor_inventario_filtrado = sum(item["valor_stock"] for item in productos_lista)
+    unidades_totales = sum(item["obj"].stock for item in productos_lista)
 
     productos_stock_bajo = [
         p for p in Producto.objects.filter(activo=True) if p.stock_bajo()
     ]
     productos_sin_stock = Producto.objects.filter(activo=True, stock=0).count()
 
-    context = {
+    categoria_nombre = ""
+    if cat:
+        cat_obj = Categoria.objects.filter(pk=cat).first()
+        categoria_nombre = cat_obj.nombre if cat_obj else ""
+
+    return {
         "productos": productos_lista,
         "categorias": Categoria.objects.filter(activo=True),
         "categoria_filtro": cat,
+        "categoria_nombre": categoria_nombre,
         "q": q,
         "solo_bajo": solo_bajo,
         "valor_inventario_total": valor_inventario_total,
@@ -1486,11 +1545,31 @@ def admin_reporte_inventario(request):
         "total_sin_stock": productos_sin_stock,
         "total_productos": Producto.objects.filter(activo=True).count(),
     }
+
+
+@admin_required
+def admin_reporte_inventario(request):
+    context = _datos_reporte_inventario(request)
     return render(request, "admin/reportes/reporte_inventario.html", context)
 
 
 @admin_required
-def admin_reporte_productos_vendidos(request):
+def admin_reporte_inventario_excel(request):
+    from . import exportes
+
+    datos = _datos_reporte_inventario(request)
+    return exportes.exportar_inventario_excel(datos)
+
+
+@admin_required
+def admin_reporte_inventario_pdf(request):
+    from . import exportes
+
+    datos = _datos_reporte_inventario(request)
+    return exportes.exportar_inventario_pdf(datos)
+
+
+def _datos_reporte_productos_vendidos(request):
     from datetime import datetime
 
     from django.db.models import Count, F, Sum
@@ -1567,17 +1646,51 @@ def admin_reporte_productos_vendidos(request):
     )
     if categoria_id:
         sin_movimiento = sin_movimiento.filter(categoria_id=categoria_id)
-    sin_movimiento = sin_movimiento.select_related("categoria").order_by("-stock")
+    sin_movimiento = list(sin_movimiento.select_related("categoria").order_by("-stock"))
 
-    context = {
+    categoria_nombre = ""
+    if categoria_id:
+        cat_obj = Categoria.objects.filter(pk=categoria_id).first()
+        categoria_nombre = cat_obj.nombre if cat_obj else ""
+
+    return {
         "desde": desde.strftime("%Y-%m-%d"),
         "hasta": hasta.strftime("%Y-%m-%d"),
+        "desde_dt": desde,
+        "hasta_dt": hasta,
         "categoria_filtro": categoria_id,
+        "categoria_nombre": categoria_nombre,
         "categorias": Categoria.objects.filter(activo=True),
         "ranking": ranking_list,
-        "top10_labels": json.dumps([r["nombre"][:22] for r in ranking_list[:10]]),
-        "top10_data": json.dumps([r["unidades_vendidas"] for r in ranking_list[:10]]),
+        "top10_labels": [r["nombre"][:22] for r in ranking_list[:10]],
+        "top10_data": [r["unidades_vendidas"] for r in ranking_list[:10]],
         "sin_movimiento": sin_movimiento,
-        "total_sin_movimiento": sin_movimiento.count(),
+        "total_sin_movimiento": len(sin_movimiento),
+    }
+
+
+@admin_required
+def admin_reporte_productos_vendidos(request):
+    datos = _datos_reporte_productos_vendidos(request)
+    context = {
+        **datos,
+        "top10_labels": json.dumps(datos["top10_labels"]),
+        "top10_data": json.dumps(datos["top10_data"]),
     }
     return render(request, "admin/reportes/reporte_productos_vendidos.html", context)
+
+
+@admin_required
+def admin_reporte_productos_vendidos_excel(request):
+    from . import exportes
+
+    datos = _datos_reporte_productos_vendidos(request)
+    return exportes.exportar_productos_vendidos_excel(datos)
+
+
+@admin_required
+def admin_reporte_productos_vendidos_pdf(request):
+    from . import exportes
+
+    datos = _datos_reporte_productos_vendidos(request)
+    return exportes.exportar_productos_vendidos_pdf(datos)
