@@ -33,6 +33,29 @@ ALLOWED_HOSTS = config(
     cast=lambda v: [s.strip() for s in v.split(",")],
 )
 
+# Railway inyecta esta variable automáticamente con el dominio público
+# asignado a tu servicio (ej: autopart-production.up.railway.app).
+# La agregamos sola, sin que tengas que tocar ALLOWED_HOSTS a mano.
+RAILWAY_PUBLIC_DOMAIN = config("RAILWAY_PUBLIC_DOMAIN", default="")
+if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+# Railway (y la mayoría de plataformas en la nube) terminan el HTTPS en su
+# propio proxy y le mandan a Django la petición como HTTP simple por dentro.
+# Sin esto, Django piensa que la conexión NO es segura y rompe el CSRF
+# y las cookies "secure". Esta línea le dice a Django que confíe en el
+# encabezado que pone el proxy para saber que en realidad sí es HTTPS.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# CSRF necesita saber explícitamente en qué dominios (con esquema https://)
+# confiar. Lo construimos automáticamente a partir de ALLOWED_HOSTS, así no
+# hay que mantener dos variables sincronizadas a mano.
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{host}"
+    for host in ALLOWED_HOSTS
+    if host not in ("127.0.0.1", "localhost")
+]
+
 # ──────────────────────────────────────────────
 # Aplicaciones instaladas
 # ──────────────────────────────────────────────
@@ -54,6 +77,7 @@ AUTHENTICATION_BACKENDS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -97,11 +121,16 @@ ASGI_APPLICATION = "config_2.asgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": config("DB_NAME", default="motopart_db"),
-        "USER": config("DB_USER", default="root"),
-        "PASSWORD": config("DB_PASSWORD", default=""),
-        "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default="3306"),
+        # Si existen DB_NAME/DB_USER/etc (tu .env local) se usan esas.
+        # Si no, cae automáticamente a las variables que Railway inyecta
+        # solo al conectar el plugin de MySQL (MYSQLHOST, MYSQLUSER, etc).
+        "NAME": config(
+            "DB_NAME", default=config("MYSQLDATABASE", default="motopart_db")
+        ),
+        "USER": config("DB_USER", default=config("MYSQLUSER", default="root")),
+        "PASSWORD": config("DB_PASSWORD", default=config("MYSQLPASSWORD", default="")),
+        "HOST": config("DB_HOST", default=config("MYSQLHOST", default="localhost")),
+        "PORT": config("DB_PORT", default=config("MYSQLPORT", default="3306")),
         "OPTIONS": {
             "charset": "utf8mb4",
         },
@@ -146,6 +175,17 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # solo se usa en producción (collectstatic)
 STATICFILES_DIRS = [BASE_DIR / "static"]  # crea esta carpeta si no existe
+
+# WhiteNoise comprime y sirve los estáticos directamente desde Django,
+# sin necesitar un servidor web aparte (nginx, etc). Ideal para Railway.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # ──────────────────────────────────────────────
 # Archivos de media (fotos de productos subidas por el admin)
