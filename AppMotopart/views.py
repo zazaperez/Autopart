@@ -1696,15 +1696,18 @@ def enviar_correo_brevo(destinatario, asunto, contenido_html):
         "Content-Type": "application/json",
     }
     data = {
-        "sender": {"name": "Motopart", "email": settings.DEFAULT_FROM_EMAIL},
+        "sender": {"name": "Autopart", "email": settings.DEFAULT_FROM_EMAIL},
         "to": [{"email": destinatario}],
         "subject": asunto,
         "htmlContent": contenido_html,
     }
     try:
         response = http_requests.post(url, json=data, headers=headers, timeout=10)
+        print(f"BREVO STATUS: {response.status_code}")
+        print(f"BREVO RESPONSE: {response.text}")
         return response.status_code == 201
-    except Exception:
+    except Exception as e:
+        print(f"BREVO ERROR: {e}")
         return False
 
 
