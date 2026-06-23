@@ -1696,7 +1696,7 @@ def enviar_correo_brevo(destinatario, asunto, contenido_html):
         "Content-Type": "application/json",
     }
     data = {
-        "sender": {"name": "Autopart", "email": settings.DEFAULT_FROM_EMAIL},
+        "sender": {"name": "Autopart", "email": "cristianpolopsw@gmail.com"},
         "to": [{"email": destinatario}],
         "subject": asunto,
         "htmlContent": contenido_html,
