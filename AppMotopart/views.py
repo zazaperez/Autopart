@@ -79,7 +79,39 @@ def vista_registro(request):
             perfil.ciudad = request.POST.get("ciudad", "").strip()
             perfil.save()
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            messages.success(request, f"¡Bienvenido, {user.first_name or username}!")
+
+            # Correo de bienvenida
+            nombre = user.first_name or username
+            html_bienvenida = f"""
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:auto;padding:30px;">
+                <div style="text-align:center;margin-bottom:24px;">
+                    <h1 style="color:#e8001d;font-size:2rem;margin:0;">⚙️ AUTOPART</h1>
+                    <p style="color:#999;font-size:0.8rem;letter-spacing:2px;text-transform:uppercase;">Calidad que te mueve</p>
+                </div>
+                <h2 style="color:#144272;">¡Bienvenido, {nombre}! 🎉</h2>
+                <p style="color:#444;line-height:1.6;">
+                    Gracias por registrarte en <strong>Autopart</strong>.
+                    Tu cuenta ha sido creada exitosamente.
+                </p>
+                <p style="color:#444;line-height:1.6;">
+                    Ahora puedes explorar nuestro catálogo de repuestos y accesorios para tu vehículo.
+                </p>
+                <div style="text-align:center;margin:30px 0;">
+                    <a href="https://{request.get_host()}"
+                       style="background:#e8001d;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+                        🛒 Ver catálogo
+                    </a>
+                </div>
+                <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+                <p style="color:#aaa;font-size:12px;text-align:center;">
+                    Si no creaste esta cuenta, ignora este correo.<br>
+                    — Equipo Autopart
+                </p>
+            </div>
+            """
+            enviar_correo_brevo(user.email, "¡Bienvenido a Autopart! 🎉", html_bienvenida)
+
+            messages.success(request, f"¡Bienvenido, {nombre}!")
             return redirect("catalogo")
 
     return render(request, "tienda/registro.html")
